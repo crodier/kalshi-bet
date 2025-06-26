@@ -6,6 +6,8 @@ import com.kalshi.mock.event.OrderBookEventListener;
 import com.kalshi.mock.event.OrderBookEventPublisher;
 import com.kalshi.mock.websocket.dto.*;
 import com.kalshi.mock.websocket.handler.KalshiWebSocketHandler;
+import com.kalshi.mock.service.OrderBookService;
+import com.kalshi.mock.dto.OrderbookResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +17,9 @@ import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class WebSocketPublisher implements OrderBookEventListener {
@@ -34,7 +38,14 @@ public class WebSocketPublisher implements OrderBookEventListener {
     @Autowired
     private ObjectMapper objectMapper;
     
+    @Autowired
+    private OrderBookService orderBookService;
+    
     private final AtomicLong sequenceNumber = new AtomicLong(1);
+    
+    // Track update counts per market for snapshot intervals
+    private final Map<String, AtomicInteger> marketUpdateCounts = new ConcurrentHashMap<>();
+    private static final int SNAPSHOT_INTERVAL = 10; // Send full snapshot every 10th update
     
     @PostConstruct
     public void init() {
@@ -65,7 +76,21 @@ public class WebSocketPublisher implements OrderBookEventListener {
     }
     
     private void handleSnapshotEvent(OrderBookEvent event) throws IOException {
-        OrderBookEvent.SnapshotData data = (OrderBookEvent.SnapshotData) event.getData();
+        // If data is null, fetch current orderbook state
+        OrderBookEvent.SnapshotData data;
+        if (event.getData() == null) {
+            // Get current orderbook state from OrderBookService
+            OrderbookResponse.OrderbookData orderbookData = orderBookService.getOrderbookKalshiFormat(
+                event.getMarketTicker(), 
+                10 // Default depth
+            );
+            data = new OrderBookEvent.SnapshotData(
+                orderbookData.getYes(),
+                orderbookData.getNo()
+            );
+        } else {
+            data = (OrderBookEvent.SnapshotData) event.getData();
+        }
         
         // Get subscribers for this market's orderbook_snapshot channel
         Set<String> subscribers = subscriptionManager.getSubscribedSessions(
@@ -102,10 +127,11 @@ public class WebSocketPublisher implements OrderBookEventListener {
     
     private void handleDeltaEvent(OrderBookEvent event) throws IOException {
         OrderBookEvent.DeltaData data = (OrderBookEvent.DeltaData) event.getData();
+        String marketTicker = event.getMarketTicker();
         
         // Get subscribers for this market's orderbook_delta channel
         Set<String> subscribers = subscriptionManager.getSubscribedSessions(
-            event.getMarketTicker(), 
+            marketTicker, 
             "orderbook_delta"
         );
         
@@ -113,26 +139,51 @@ public class WebSocketPublisher implements OrderBookEventListener {
             return;
         }
         
-        // Create delta message
-        WebSocketMessage message = new WebSocketMessage();
-        message.setType("orderbook_delta");
-        message.setSeq(sequenceNumber.getAndIncrement());
+        // Track update count for this market
+        AtomicInteger updateCount = marketUpdateCounts.computeIfAbsent(
+            marketTicker, 
+            k -> new AtomicInteger(0)
+        );
         
-        OrderbookDelta delta = new OrderbookDelta();
-        delta.setMarketTicker(event.getMarketTicker());
-        delta.setPrice(data.getPrice());
-        delta.setDelta(data.getDelta());
-        delta.setSide(data.getSide());
+        int currentCount = updateCount.incrementAndGet();
         
-        message.setMsg(delta);
-        
-        // Send to all subscribers
-        String jsonMessage = objectMapper.writeValueAsString(message);
-        for (String sessionId : subscribers) {
-            try {
-                webSocketHandler.sendMessage(sessionId, jsonMessage);
-            } catch (IOException e) {
-                logger.error("Failed to send delta to session: {}", sessionId, e);
+        // Check if we should send a snapshot instead
+        if (currentCount % SNAPSHOT_INTERVAL == 0) {
+            // Send full snapshot
+            logger.info("Sending snapshot for market {} at update count {}", marketTicker, currentCount);
+            
+            // Create and send snapshot event
+            OrderBookEvent snapshotEvent = new OrderBookEvent(
+                OrderBookEvent.EventType.SNAPSHOT,
+                marketTicker,
+                null // Will be populated in handleSnapshotEvent
+            );
+            handleSnapshotEvent(snapshotEvent);
+            
+            // Reset delta tracking in the order book
+            orderBookService.resetOrderBookDeltaTracking(marketTicker);
+        } else {
+            // Send delta update
+            WebSocketMessage message = new WebSocketMessage();
+            message.setType("orderbook_delta");
+            message.setSeq(sequenceNumber.getAndIncrement());
+            
+            OrderbookDelta delta = new OrderbookDelta();
+            delta.setMarketTicker(marketTicker);
+            delta.setPrice(data.getPrice());
+            delta.setDelta(data.getDelta());
+            delta.setSide(data.getSide());
+            
+            message.setMsg(delta);
+            
+            // Send to all subscribers
+            String jsonMessage = objectMapper.writeValueAsString(message);
+            for (String sessionId : subscribers) {
+                try {
+                    webSocketHandler.sendMessage(sessionId, jsonMessage);
+                } catch (IOException e) {
+                    logger.error("Failed to send delta to session: {}", sessionId, e);
+                }
             }
         }
     }

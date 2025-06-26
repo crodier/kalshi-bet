@@ -44,6 +44,10 @@ public class ConcurrentOrderBook {
     // Listeners for order book events
     private final List<OrderBookListener> listeners = new CopyOnWriteArrayList<>();
     
+    // Track previous order book state for delta generation
+    private Map<Integer, Integer> previousYesLevels = new HashMap<>();
+    private Map<Integer, Integer> previousNoLevels = new HashMap<>();
+    
     public ConcurrentOrderBook(String marketTicker) {
         this.marketTicker = marketTicker;
     }
@@ -440,6 +444,107 @@ public class ConcurrentOrderBook {
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    /**
+     * Calculate deltas between current and previous order book state
+     * Returns a list of price level changes
+     */
+    public List<PriceLevelDelta> calculateDeltas() {
+        lock.readLock().lock();
+        try {
+            List<PriceLevelDelta> deltas = new ArrayList<>();
+            
+            // Get current state
+            Map<Integer, Integer> currentYesLevels = new TreeMap<>(Comparator.reverseOrder());
+            Map<Integer, Integer> currentNoLevels = new TreeMap<>();
+            
+            // Build current YES levels (Buy YES orders)
+            for (Map.Entry<Integer, Queue<OrderBookEntry>> level : bids.entrySet()) {
+                for (OrderBookEntry order : level.getValue()) {
+                    if (order.getSide() == KalshiSide.yes && order.getAction().equals("buy")) {
+                        currentYesLevels.merge(order.getPrice(), order.getQuantity(), Integer::sum);
+                    }
+                }
+            }
+            
+            // Build current NO levels (Buy NO orders)
+            for (Map.Entry<Integer, Queue<OrderBookEntry>> level : asks.entrySet()) {
+                for (OrderBookEntry order : level.getValue()) {
+                    if (order.getSide() == KalshiSide.no && order.getAction().equals("buy")) {
+                        currentNoLevels.merge(order.getPrice(), order.getQuantity(), Integer::sum);
+                    }
+                }
+            }
+            
+            // Calculate YES deltas
+            Set<Integer> allYesPrices = new HashSet<>();
+            allYesPrices.addAll(currentYesLevels.keySet());
+            allYesPrices.addAll(previousYesLevels.keySet());
+            
+            for (Integer price : allYesPrices) {
+                int currentQty = currentYesLevels.getOrDefault(price, 0);
+                int previousQty = previousYesLevels.getOrDefault(price, 0);
+                
+                if (currentQty != previousQty) {
+                    deltas.add(new PriceLevelDelta(price, currentQty - previousQty, "yes"));
+                }
+            }
+            
+            // Calculate NO deltas
+            Set<Integer> allNoPrices = new HashSet<>();
+            allNoPrices.addAll(currentNoLevels.keySet());
+            allNoPrices.addAll(previousNoLevels.keySet());
+            
+            for (Integer price : allNoPrices) {
+                int currentQty = currentNoLevels.getOrDefault(price, 0);
+                int previousQty = previousNoLevels.getOrDefault(price, 0);
+                
+                if (currentQty != previousQty) {
+                    deltas.add(new PriceLevelDelta(price, currentQty - previousQty, "no"));
+                }
+            }
+            
+            // Update previous state
+            previousYesLevels = currentYesLevels;
+            previousNoLevels = currentNoLevels;
+            
+            return deltas;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    /**
+     * Reset delta tracking state
+     */
+    public void resetDeltaTracking() {
+        lock.writeLock().lock();
+        try {
+            previousYesLevels.clear();
+            previousNoLevels.clear();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    
+    /**
+     * Price level delta data
+     */
+    public static class PriceLevelDelta {
+        private final int price;
+        private final int delta;
+        private final String side;
+        
+        public PriceLevelDelta(int price, int delta, String side) {
+            this.price = price;
+            this.delta = delta;
+            this.side = side;
+        }
+        
+        public int getPrice() { return price; }
+        public int getDelta() { return delta; }
+        public String getSide() { return side; }
     }
 
     public interface OrderBookListener {

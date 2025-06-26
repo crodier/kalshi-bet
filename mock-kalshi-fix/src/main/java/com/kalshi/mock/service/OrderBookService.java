@@ -405,9 +405,31 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
     }
     
     private void publishOrderBookDelta(String marketTicker) {
-        // For now, we'll publish a snapshot instead of tracking individual deltas
-        // In a real implementation, we would track the actual changes
-        publishOrderBookSnapshot(marketTicker);
+        ConcurrentOrderBook orderBook = orderBooks.get(marketTicker);
+        if (orderBook == null) {
+            return;
+        }
+        
+        // Calculate deltas from the order book
+        List<ConcurrentOrderBook.PriceLevelDelta> deltas = orderBook.calculateDeltas();
+        
+        // Publish delta events for each change
+        for (ConcurrentOrderBook.PriceLevelDelta delta : deltas) {
+            OrderBookEvent.DeltaData deltaData = new OrderBookEvent.DeltaData(
+                delta.getPrice(),
+                delta.getDelta(),
+                delta.getSide()
+            );
+            OrderBookEvent event = new OrderBookEvent(
+                OrderBookEvent.EventType.DELTA,
+                marketTicker,
+                deltaData
+            );
+            eventPublisher.publishEvent(event);
+        }
+        
+        // If no deltas, we might still want to publish a snapshot periodically
+        // This will be handled by the WebSocketPublisher based on update counts
     }
     
     private void publishOrderBookSnapshot(String marketTicker) {
@@ -469,6 +491,16 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
     
     public void publishInitialSnapshot(String marketTicker, String sessionId) {
         publishOrderBookSnapshot(marketTicker);
+    }
+    
+    /**
+     * Reset delta tracking for a specific market's order book
+     */
+    public void resetOrderBookDeltaTracking(String marketTicker) {
+        ConcurrentOrderBook orderBook = orderBooks.get(marketTicker);
+        if (orderBook != null) {
+            orderBook.resetDeltaTracking();
+        }
     }
     
 }
