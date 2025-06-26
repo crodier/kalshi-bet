@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { marketAPI, orderAPI } from '../services/api';
-import websocketService from '../services/websocket';
+import { useMarketData } from '../contexts/MarketDataContext';
 import './EventOrderTicket.css';
 
 const EventOrderTicket = ({ marketTicker, userId = 'user123' }) => {
-  const [topOfBook, setTopOfBook] = useState({
-    yesTop: null,
-    noTop: null
-  });
+  const { subscribeToMarket, getMarketData } = useMarketData();
   const [orderForm, setOrderForm] = useState({
     side: 'yes',
     quantity: 1,
@@ -15,70 +12,33 @@ const EventOrderTicket = ({ marketTicker, userId = 'user123' }) => {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
-  const [subscriptionId, setSubscriptionId] = useState(null);
 
   useEffect(() => {
     if (!marketTicker) return;
 
+    // Subscribe to market data through the shared context
+    subscribeToMarket(marketTicker);
+    
+    // Also fetch initial data via REST
     fetchTopOfBook();
-    const subId = subscribeToOrderbook();
-    setSubscriptionId(subId);
-
-    return () => {
-      if (subId) {
-        websocketService.unsubscribe(subId);
-      }
-    };
-  }, [marketTicker]);
+  }, [marketTicker, subscribeToMarket]);
 
   const fetchTopOfBook = async () => {
     try {
       const response = await marketAPI.getOrderbook(marketTicker);
       const data = response.data;
-      processTopOfBook(data.orderbook);
+      // Initial data is now handled by the shared context, but we could still process it here if needed
+      console.log('EventOrderTicket: Fetched initial orderbook data');
     } catch (err) {
       console.error('Error fetching orderbook:', err);
     }
   };
 
-  const subscribeToOrderbook = () => {
-    return websocketService.subscribe(
-      ['orderbook_snapshot', 'orderbook_delta'],
-      [marketTicker],
-      (message) => {
-        if (message.msg && message.msg.market_ticker === marketTicker) {
-          processTopOfBook(message.msg);
-        }
-      }
-    );
-  };
-
-  const processTopOfBook = (orderbookData) => {
-    const yesOrders = orderbookData.yes || [];
-    const noOrders = orderbookData.no || [];
-    
-    console.log('Processing orderbook:', { yesOrders, noOrders });
-    
-    // For crossing the market:
-    // To buy YES immediately: need to cross with the best NO order
-    // The crossing price for YES = 100 - (best NO price)
-    const crossingYes = noOrders.length > 0 ? {
-      price: 100 - noOrders[0][0],  // If NO is at 25¢, YES crosses at 75¢
-      quantity: noOrders[0][1],
-      originalNoPrice: noOrders[0][0]
-    } : null;
-    
-    // To buy NO immediately: need to cross with the best YES order  
-    // The crossing price for NO = 100 - (best YES price)
-    const crossingNo = yesOrders.length > 0 ? {
-      price: 100 - yesOrders[0][0],  // If YES is at 60¢, NO crosses at 40¢
-      quantity: yesOrders[0][1],
-      originalYesPrice: yesOrders[0][0]
-    } : null;
-    
-    console.log('Crossing prices:', { crossingYes, crossingNo });
-    
-    setTopOfBook({ yesTop: crossingYes, noTop: crossingNo });
+  // Get current market data from shared context
+  const marketData = getMarketData(marketTicker);
+  const topOfBook = {
+    yesTop: marketData.crossingPrices?.yes || null,
+    noTop: marketData.crossingPrices?.no || null
   };
 
   const handleSideSelect = (side) => {
@@ -135,8 +95,7 @@ const EventOrderTicket = ({ marketTicker, userId = 'user123' }) => {
       // Reset form
       setOrderForm(prev => ({ ...prev, quantity: 1, price: null }));
       
-      // Refresh orderbook
-      fetchTopOfBook();
+      // Market data will be updated automatically via WebSocket
     } catch (err) {
       console.error('Error placing order:', err);
       setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to place order' });

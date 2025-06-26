@@ -159,6 +159,12 @@ public class PersistenceService {
         return orders.isEmpty() ? null : orders.get(0);
     }
     
+    public String getOrderAction(String orderId) {
+        String sql = "SELECT action FROM orders WHERE order_id = ?";
+        List<String> actions = jdbcTemplate.queryForList(sql, String.class, orderId);
+        return actions.isEmpty() ? null : actions.get(0);
+    }
+    
     public List<Order> getUserOrders(String userId) {
         String sql = "SELECT * FROM orders WHERE user_id = ? ORDER BY created_time DESC";
         return jdbcTemplate.query(sql, orderRowMapper, userId);

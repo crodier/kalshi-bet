@@ -1,88 +1,133 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { marketAPI } from '../services/api';
-import websocketService from '../services/websocket';
+import { useMarketData } from '../contexts/MarketDataContext';
 import './MarketGrid.css';
 
 const MarketGrid = ({ onMarketSelect }) => {
+  const { subscribeToMarket, marketData } = useMarketData();
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMarket, setSelectedMarket] = useState(null);
-  const tickerSubscriptionsRef = useRef([]);
-  const isSubscribedRef = useRef(false);
-  const [flashingMarkets, setFlashingMarkets] = useState(new Set());
   const [flashingCells, setFlashingCells] = useState({}); // Track which cells are flashing
-  const [marketTimestamps, setMarketTimestamps] = useState({}); // Track timestamps for each market
 
   useEffect(() => {
     fetchMarkets();
   }, []);
 
-  // Handle WebSocket subscriptions with proper cleanup
-  const subscribeToMarkets = useCallback((marketList) => {
-    // Clear any existing subscriptions
-    tickerSubscriptionsRef.current.forEach(subId => {
-      websocketService.unsubscribe(subId);
-    });
-    tickerSubscriptionsRef.current = [];
-    
-    const subscriptions = [];
-    const marketTickers = marketList.map(m => m.ticker);
-    
-    marketTickers.forEach(ticker => {
-      // Subscribe to ticker updates
-      const tickerSubId = websocketService.subscribe(
-        ['ticker'],
-        [ticker],
-        (message) => {
-          if (message.msg && message.msg.marketTicker === ticker) {
-            handleTickerUpdate(message.msg);
-          }
-        }
-      );
-      subscriptions.push(tickerSubId);
-      
-      // Subscribe to orderbook updates to get best prices
-      const orderbookSubId = websocketService.subscribe(
-        ['orderbook_snapshot', 'orderbook_delta'],
-        [ticker],
-        (message) => {
-          if (message.msg && message.msg.market_ticker === ticker) {
-            if (message.type === 'orderbook_snapshot') {
-              handleOrderbookSnapshot(ticker, message.msg);
-            } else if (message.type === 'orderbook_delta') {
-              handleOrderbookDelta(ticker, message.msg);
-            }
-          }
-        }
-      );
-      subscriptions.push(orderbookSubId);
-      
-      // Subscribe to trades/executions
-      const tradesSubId = websocketService.subscribe(
-        ['trade', 'execution'],
-        [ticker],
-        (message) => {
-          if (message.msg && (message.msg.market_ticker === ticker || message.msg.ticker === ticker)) {
-            handleTradeExecution(ticker, message.msg);
-          }
-        }
-      );
-      subscriptions.push(tradesSubId);
-    });
-    
-    tickerSubscriptionsRef.current = subscriptions;
-    isSubscribedRef.current = true;
-  }, []);
-  
-  // Clean up subscriptions on unmount
+  // Subscribe to all markets for data updates
   useEffect(() => {
-    return () => {
-      tickerSubscriptionsRef.current.forEach(subId => {
-        websocketService.unsubscribe(subId);
+    if (markets.length > 0) {
+      markets.forEach(market => {
+        subscribeToMarket(market.ticker);
       });
-    };
-  }, []);
+    }
+  }, [markets, subscribeToMarket]);
+
+  // Update markets with shared market data
+  useEffect(() => {
+    if (markets.length > 0) {
+      const hasUpdates = Object.keys(marketData).some(ticker => {
+        const sharedData = marketData[ticker];
+        const market = markets.find(m => m.ticker === ticker);
+        if (!market || !sharedData) return false;
+        
+        // Check if any data has changed
+        return (
+          (sharedData.bestPrices?.yesBuy !== market.yesBid) ||
+          (sharedData.bestPrices?.noBuy !== market.noBid) ||
+          (sharedData.lastBidUpdate && sharedData.lastBidUpdate !== market.lastBidUpdate) ||
+          (sharedData.lastAskUpdate && sharedData.lastAskUpdate !== market.lastAskUpdate) ||
+          (sharedData.lastExecution && sharedData.lastExecution !== market.lastExecution) ||
+          (sharedData.ticker?.lastPrice !== market.lastPrice) ||
+          (sharedData.ticker?.volume !== market.volume)
+        );
+      });
+
+      if (hasUpdates) {
+        setMarkets(prevMarkets => {
+          return prevMarkets.map(market => {
+            const sharedData = marketData[market.ticker];
+            if (!sharedData) return market;
+
+            const now = new Date();
+            let updates = {};
+            let cellsToFlash = {};
+
+            // Update best prices with flashing (only flash when best price actually changes)
+            if (sharedData.bestPrices) {
+              if (sharedData.bestPrices.yesBuy !== market.yesBid) {
+                updates.yesBid = sharedData.bestPrices.yesBuy;
+                updates.yesBidTimestamp = sharedData.bestPrices.yesBuyTimestamp;
+                // Only flash if this is actually a better (higher) price or a change in the best price
+                cellsToFlash.bid = true;
+              }
+              if (sharedData.bestPrices.noBuy !== market.noBid) {
+                updates.noBid = sharedData.bestPrices.noBuy;
+                updates.noBidTimestamp = sharedData.bestPrices.noBuyTimestamp;
+                // Only flash if this is actually a better (higher) NO price or a change in the best price
+                cellsToFlash.ask = true;
+              }
+            }
+
+            // Update bid/ask update info with flashing
+            if (sharedData.lastBidUpdate && JSON.stringify(sharedData.lastBidUpdate) !== JSON.stringify(market.lastBidUpdate)) {
+              updates.lastBidUpdate = sharedData.lastBidUpdate;
+              cellsToFlash.lastBid = true;
+            }
+            if (sharedData.lastAskUpdate && JSON.stringify(sharedData.lastAskUpdate) !== JSON.stringify(market.lastAskUpdate)) {
+              updates.lastAskUpdate = sharedData.lastAskUpdate;
+              cellsToFlash.lastAsk = true;
+            }
+
+            // Update executions with flashing
+            if (sharedData.lastExecution && JSON.stringify(sharedData.lastExecution) !== JSON.stringify(market.lastExecution)) {
+              updates.lastExecution = sharedData.lastExecution;
+              cellsToFlash.execution = true;
+            }
+
+            // Update ticker data with flashing
+            if (sharedData.ticker) {
+              if (sharedData.ticker.lastPrice !== market.lastPrice) {
+                updates.lastPrice = sharedData.ticker.lastPrice;
+                cellsToFlash.price = true;
+              }
+              if (sharedData.ticker.volume !== market.volume) {
+                updates.volume = sharedData.ticker.volume;
+                cellsToFlash.volume = true;
+              }
+            }
+
+            // Flash cells if there are updates
+            if (Object.keys(cellsToFlash).length > 0) {
+              const flashKey = market.ticker;
+              setFlashingCells(prev => ({
+                ...prev,
+                [flashKey]: { ...prev[flashKey], ...cellsToFlash }
+              }));
+
+              setTimeout(() => {
+                setFlashingCells(prev => {
+                  const newFlashing = { ...prev };
+                  if (newFlashing[flashKey]) {
+                    Object.keys(cellsToFlash).forEach(key => {
+                      delete newFlashing[flashKey][key];
+                    });
+                    if (Object.keys(newFlashing[flashKey]).length === 0) {
+                      delete newFlashing[flashKey];
+                    }
+                  }
+                  return newFlashing;
+                });
+              }, 2000);
+            }
+
+            return Object.keys(updates).length > 0 ? { ...market, ...updates } : market;
+          });
+        });
+      }
+    }
+  }, [marketData]);
 
   const fetchMarkets = async () => {
     try {
@@ -107,26 +152,15 @@ const MarketGrid = ({ onMarketSelect }) => {
             lastExecution: null
           }));
           setMarkets(apiMarkets);
-          
-          // Subscribe to markets only after initial fetch
-          if (!isSubscribedRef.current) {
-            subscribeToMarkets(apiMarkets);
-          }
         } else {
           // Fallback to mock markets
           const mockMarkets = getDefaultMarkets();
           setMarkets(mockMarkets);
-          if (!isSubscribedRef.current) {
-            subscribeToMarkets(mockMarkets);
-          }
         }
       } catch (apiError) {
         // If API fails, use mock markets
         const mockMarkets = getDefaultMarkets();
         setMarkets(mockMarkets);
-        if (!isSubscribedRef.current) {
-          subscribeToMarkets(mockMarkets);
-        }
       }
       setLoading(false);
     } catch (err) {
@@ -150,319 +184,6 @@ const MarketGrid = ({ onMarketSelect }) => {
         yesBidTimestamp: null, noBidTimestamp: null, lastBidUpdate: null, lastAskUpdate: null, lastExecution: null }
     ];
   };
-  
-  const handleOrderbookSnapshot = useCallback((ticker, orderbookData) => {
-    // Extract best YES buy and best NO buy from orderbook
-    setMarkets(prevMarkets => {
-      const currentMarket = prevMarkets.find(m => m.ticker === ticker);
-      if (!currentMarket) return prevMarkets;
-      
-      let bestYesBuy = null;
-      let bestNoBuy = null;
-      const now = new Date();
-      
-      // Get best YES buy (highest price on YES side)
-      if (orderbookData.yes && orderbookData.yes.length > 0) {
-        // Sort YES orders by price descending to get best (highest) bid
-        const sortedYes = [...orderbookData.yes].sort((a, b) => b[0] - a[0]);
-        bestYesBuy = sortedYes[0][0]; // Highest price
-      }
-      
-      // Get best NO buy (highest price on NO side)
-      if (orderbookData.no && orderbookData.no.length > 0) {
-        // Sort NO orders by price descending to get best (highest) bid
-        const sortedNo = [...orderbookData.no].sort((a, b) => b[0] - a[0]);
-        bestNoBuy = sortedNo[0][0]; // Highest price
-      }
-      
-      const cellsToFlash = {};
-      let lastBidUpdate = currentMarket.lastBidUpdate;
-      let lastAskUpdate = currentMarket.lastAskUpdate;
-      
-      // Always update last bid/ask info for any YES/NO changes in the snapshot
-      if (orderbookData.yes && orderbookData.yes.length > 0) {
-        cellsToFlash.lastBid = true;
-        lastBidUpdate = {
-          price: bestYesBuy,
-          timestamp: now,
-          side: 'yes',
-          type: 'snapshot',
-          action: 'UPDATE',
-          quantity: orderbookData.yes[0][1] // quantity from first level
-        };
-      }
-      
-      if (orderbookData.no && orderbookData.no.length > 0) {
-        cellsToFlash.lastAsk = true;
-        lastAskUpdate = {
-          price: bestNoBuy,
-          timestamp: now,
-          side: 'no',
-          type: 'snapshot',
-          action: 'UPDATE',
-          quantity: orderbookData.no[0][1] // quantity from first level
-        };
-      }
-      
-      // Check if top of book (best prices) changed - only update timestamps when best prices change
-      let yesBidTimestamp = currentMarket.yesBidTimestamp;
-      let noBidTimestamp = currentMarket.noBidTimestamp;
-      
-      if (bestYesBuy !== null && bestYesBuy !== currentMarket.yesBid) {
-        cellsToFlash.bid = true;
-        yesBidTimestamp = now; // Update timestamp only when best price changes
-      }
-      
-      if (bestNoBuy !== null && bestNoBuy !== currentMarket.noBid) {
-        cellsToFlash.ask = true;
-        noBidTimestamp = now; // Update timestamp only when best price changes
-      }
-      
-      // Flash specific cells that changed
-      if (Object.keys(cellsToFlash).length > 0) {
-        const flashKey = `${ticker}`;
-        setFlashingCells(prev => ({
-          ...prev,
-          [flashKey]: cellsToFlash
-        }));
-        
-        // Remove flash after animation
-        setTimeout(() => {
-          setFlashingCells(prev => {
-            const newFlashing = { ...prev };
-            delete newFlashing[flashKey];
-            return newFlashing;
-          });
-        }, 2000);
-      }
-      
-      // Return updated markets with new best prices and timestamps
-      return prevMarkets.map(market => 
-        market.ticker === ticker
-          ? { 
-              ...market, 
-              yesBid: bestYesBuy !== null ? bestYesBuy : market.yesBid,
-              noBid: bestNoBuy !== null ? bestNoBuy : market.noBid,
-              yesBidTimestamp,
-              noBidTimestamp,
-              lastBidUpdate,
-              lastAskUpdate,
-              lastExecution: market.lastExecution
-            }
-          : market
-      );
-    });
-  }, []);
-  
-  const handleOrderbookDelta = useCallback((ticker, deltaData) => {
-    // Handle individual delta updates for best price tracking
-    setMarkets(prevMarkets => {
-      const currentMarket = prevMarkets.find(m => m.ticker === ticker);
-      if (!currentMarket) return prevMarkets;
-      
-      // Delta format: { price: number, delta: number, side: 'yes'|'no' }
-      const { price, delta, side } = deltaData;
-      
-      // For MarketGrid, track ALL delta updates and check if they affect best prices
-      const cellsToFlash = {};
-      let needsUpdate = true; // Always update for any delta
-      let lastBidUpdate = currentMarket.lastBidUpdate;
-      let lastAskUpdate = currentMarket.lastAskUpdate;
-      let yesBidTimestamp = currentMarket.yesBidTimestamp;
-      let noBidTimestamp = currentMarket.noBidTimestamp;
-      const now = new Date();
-      
-      if (side === 'yes') {
-        // This affects YES side (bids) - always track the update
-        cellsToFlash.lastBid = true;
-        lastBidUpdate = {
-          price: price,
-          timestamp: now,
-          side: 'yes',
-          type: 'delta',
-          action: delta > 0 ? 'ADD' : 'REMOVE',
-          quantity: Math.abs(delta)
-        };
-        
-        // Check if this affects the best bid (top of book)
-        if (delta > 0) {
-          // Adding liquidity - might be new best bid
-          if (!currentMarket.yesBid || price > currentMarket.yesBid) {
-            cellsToFlash.bid = true;
-            yesBidTimestamp = now; // Update timestamp only when best price changes
-          }
-        } else {
-          // Removing liquidity - might affect best bid if it was the best
-          if (currentMarket.yesBid === price) {
-            cellsToFlash.bid = true;
-            yesBidTimestamp = now; // Update timestamp only when best price changes
-          }
-        }
-      } else if (side === 'no') {
-        // This affects NO side (asks) - always track the update
-        cellsToFlash.lastAsk = true;
-        lastAskUpdate = {
-          price: price,
-          timestamp: now,
-          side: 'no',
-          type: 'delta',
-          action: delta > 0 ? 'ADD' : 'REMOVE',
-          quantity: Math.abs(delta)
-        };
-        
-        // Check if this affects the best ask (top of book)
-        if (delta > 0) {
-          // Adding liquidity - might be new best ask
-          if (!currentMarket.noBid || price > currentMarket.noBid) {
-            cellsToFlash.ask = true;
-            noBidTimestamp = now; // Update timestamp only when best price changes
-          }
-        } else {
-          // Removing liquidity - might affect best ask if it was the best
-          if (currentMarket.noBid === price) {
-            cellsToFlash.ask = true;
-            noBidTimestamp = now; // Update timestamp only when best price changes
-          }
-        }
-      }
-      
-      // Flash cells and update market data if needed
-      if (needsUpdate) {
-        const flashKey = `${ticker}`;
-        setFlashingCells(prev => ({
-          ...prev,
-          [flashKey]: cellsToFlash
-        }));
-        
-        // Remove flash after animation
-        setTimeout(() => {
-          setFlashingCells(prev => {
-            const newFlashing = { ...prev };
-            delete newFlashing[flashKey];
-            return newFlashing;
-          });
-        }, 2000);
-        
-        // Return updated markets with new prices and timestamps based on delta
-        return prevMarkets.map(market => 
-          market.ticker === ticker
-            ? { 
-                ...market, 
-                yesBid: side === 'yes' && delta > 0 ? Math.max(market.yesBid || 0, price) : market.yesBid,
-                noBid: side === 'no' && delta > 0 ? Math.max(market.noBid || 0, price) : market.noBid,
-                yesBidTimestamp,
-                noBidTimestamp,
-                lastBidUpdate,
-                lastAskUpdate,
-                lastExecution: market.lastExecution
-              }
-            : market
-        );
-      }
-      
-      return prevMarkets;
-    });
-  }, []);
-  
-  const handleTradeExecution = useCallback((ticker, tradeData) => {
-    const now = new Date();
-    
-    setMarkets(prevMarkets => {
-      const currentMarket = prevMarkets.find(m => m.ticker === ticker);
-      if (!currentMarket) return prevMarkets;
-      
-      // Extract execution details from trade data
-      const execution = {
-        price: tradeData.price ? Math.round(tradeData.price / 100) : tradeData.execution_price || tradeData.last_price,
-        size: tradeData.size || tradeData.quantity || tradeData.count || 1,
-        timestamp: now,
-        side: tradeData.side || 'unknown'
-      };
-      
-      // Flash the execution cell
-      const flashKey = `${ticker}`;
-      setFlashingCells(prev => ({
-        ...prev,
-        [flashKey]: { ...prev[flashKey], execution: true }
-      }));
-      
-      // Remove flash after animation
-      setTimeout(() => {
-        setFlashingCells(prev => {
-          const newFlashing = { ...prev };
-          if (newFlashing[flashKey]) {
-            delete newFlashing[flashKey].execution;
-            if (Object.keys(newFlashing[flashKey]).length === 0) {
-              delete newFlashing[flashKey];
-            }
-          }
-          return newFlashing;
-        });
-      }, 2000);
-      
-      // Update market with execution data
-      return prevMarkets.map(market => 
-        market.ticker === ticker
-          ? { ...market, lastExecution: execution }
-          : market
-      );
-    });
-  }, []);
-  
-  const handleTickerUpdate = useCallback((tickerData) => {
-    // Handle ticker updates for last price and volume only
-    setMarkets(prevMarkets => {
-      const currentMarket = prevMarkets.find(m => m.ticker === tickerData.marketTicker);
-      if (!currentMarket) return prevMarkets;
-      
-      const newPrice = tickerData.lastPrice ? Math.round(tickerData.lastPrice / 100) : null;
-      const newVolume = tickerData.volume;
-      
-      const cellsToFlash = {};
-      
-      // Check each field for changes
-      if (newPrice !== null && newPrice !== currentMarket.lastPrice) {
-        cellsToFlash.price = true;
-      }
-      if (newVolume !== undefined && newVolume !== currentMarket.volume) {
-        cellsToFlash.volume = true;
-      }
-      
-      // Flash specific cells that changed
-      if (Object.keys(cellsToFlash).length > 0) {
-        const flashKey = `${tickerData.marketTicker}`;
-        setFlashingCells(prev => ({
-          ...prev,
-          [flashKey]: { ...prev[flashKey], ...cellsToFlash }
-        }));
-        
-        // Remove flash after animation
-        setTimeout(() => {
-          setFlashingCells(prev => {
-            const newFlashing = { ...prev };
-            if (newFlashing[flashKey]) {
-              delete newFlashing[flashKey].price;
-              delete newFlashing[flashKey].volume;
-              if (Object.keys(newFlashing[flashKey]).length === 0) {
-                delete newFlashing[flashKey];
-              }
-            }
-            return newFlashing;
-          });
-        }, 2000);
-      }
-
-      return prevMarkets.map(market => 
-        market.ticker === tickerData.marketTicker
-          ? { 
-              ...market, 
-              lastPrice: newPrice !== null ? newPrice : market.lastPrice,
-              volume: newVolume !== undefined ? newVolume : market.volume
-            }
-          : market
-      );
-    });
-  }, []);
 
   const handleMarketClick = (market) => {
     setSelectedMarket(market.ticker);

@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { marketAPI } from '../services/api';
-import websocketService from '../services/websocket';
+import { useMarketData } from '../contexts/MarketDataContext';
 import './OrderBook.css';
 
 const OrderBook = ({ marketTicker }) => {
-  const [orderbook, setOrderbook] = useState({ bids: [], asks: [] });
+  const { subscribeToMarket, getMarketData } = useMarketData();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [subscriptionId, setSubscriptionId] = useState(null);
   const [flashingLevels, setFlashingLevels] = useState({ bids: new Set(), asks: new Set() });
-  const [levelTimestamps, setLevelTimestamps] = useState({ bids: {}, asks: {} }); // Track timestamps for each price level
+  const [levelTimestamps, setLevelTimestamps] = useState({ bids: {}, asks: {} });
   const [updateStatus, setUpdateStatus] = useState({ 
     type: '', 
     timestamp: null, 
@@ -23,20 +22,100 @@ const OrderBook = ({ marketTicker }) => {
   useEffect(() => {
     if (!marketTicker) return;
 
+    // Subscribe to market data through the shared context
+    subscribeToMarket(marketTicker);
+    
     // Fetch initial orderbook
     fetchOrderbook();
+  }, [marketTicker, subscribeToMarket]);
 
-    // Subscribe to WebSocket updates
-    const subId = subscribeToOrderbook();
-    setSubscriptionId(subId);
-
-    // Cleanup on unmount or market change
-    return () => {
-      if (subId) {
-        websocketService.unsubscribe(subId);
+  // Update orderbook from shared market data with flashing
+  const [orderbook, setOrderbook] = useState({ bids: [], asks: [] });
+  
+  useEffect(() => {
+    if (!marketTicker) return;
+    
+    const marketData = getMarketData(marketTicker);
+    if (marketData.orderbook) {
+      const orderbookData = marketData.orderbook;
+      
+      // Process the orderbook data
+      const bids = [];
+      const asks = [];
+      const newFlashingBids = new Set();
+      const newFlashingAsks = new Set();
+      const now = new Date();
+      
+      // Process YES side (Buy YES orders) - these are bids
+      const yesOrders = orderbookData.yes || [];
+      yesOrders.forEach((level) => {
+        const [price, quantity] = level;
+        bids.push({ price, quantity });
+        
+        // Check if this level changed from previous orderbook
+        const existingBid = orderbook.bids.find(b => b.price === price);
+        if (!existingBid || existingBid.quantity !== quantity) {
+          newFlashingBids.add(price);
+        }
+      });
+      
+      // Process NO side (Buy NO orders)
+      const noOrders = orderbookData.no || [];
+      noOrders.forEach((level) => {
+        const [noPrice, quantity] = level;
+        asks.push({ price: noPrice, quantity });
+        
+        // Check if this level changed from previous orderbook
+        const existingAsk = orderbook.asks.find(a => a.price === noPrice);
+        if (!existingAsk || existingAsk.quantity !== quantity) {
+          newFlashingAsks.add(noPrice);
+        }
+      });
+      
+      // Sort both sides descending (highest first)
+      bids.sort((a, b) => b.price - a.price);
+      asks.sort((a, b) => b.price - a.price);
+      
+      setOrderbook({ bids, asks });
+      
+      // Flash changed levels
+      if (orderbookData.updateType === 'snapshot') {
+        // For snapshots, flash everything briefly
+        setFlashingLevels({ bids: new Set(bids.map(b => b.price)), asks: new Set(asks.map(a => a.price)) });
+      } else {
+        // For deltas, flash only changed levels
+        setFlashingLevels({ bids: newFlashingBids, asks: newFlashingAsks });
       }
-    };
-  }, [marketTicker]);
+      
+      // Remove flashing after animation
+      setTimeout(() => {
+        setFlashingLevels({ bids: new Set(), asks: new Set() });
+      }, 2000);
+      
+      // Update status based on update type
+      const isSnapshot = orderbookData.updateType === 'snapshot';
+      const isDelta = orderbookData.updateType === 'delta';
+      
+      setUpdateStatus(prev => ({
+        type: orderbookData.updateType || 'snapshot',
+        timestamp: now,
+        details: isDelta && orderbookData.deltaInfo ? 
+          `${orderbookData.deltaInfo.action} ${orderbookData.deltaInfo.quantity} @ ${orderbookData.deltaInfo.price}¢` : 
+          (isDelta ? `Delta Update - ${newFlashingBids.size + newFlashingAsks.size} levels changed` : 'Full Snapshot'),
+        messageCount: prev.messageCount + 1,
+        deltaCount: isDelta ? prev.deltaCount + 1 : prev.deltaCount,
+        snapshotCount: isSnapshot ? prev.snapshotCount + 1 : prev.snapshotCount,
+        lastDelta: isDelta && orderbookData.deltaInfo ? {
+          side: orderbookData.deltaInfo.side,
+          action: orderbookData.deltaInfo.action,
+          delta: orderbookData.deltaInfo.quantity,
+          price: orderbookData.deltaInfo.price
+        } : prev.lastDelta
+      }));
+      
+      setLoading(false);
+    }
+  }, [marketTicker, getMarketData]);
 
   const fetchOrderbook = async () => {
     try {
@@ -44,10 +123,7 @@ const OrderBook = ({ marketTicker }) => {
       console.log('Fetching orderbook for market:', marketTicker);
       const response = await marketAPI.getOrderbook(marketTicker);
       console.log('Orderbook response:', response);
-      const data = response.data;
-      
-      // Process the orderbook data
-      processOrderbookSnapshot(data.orderbook);
+      // Data is now handled by the shared context
       setLoading(false);
     } catch (err) {
       console.error('Error fetching orderbook:', err);
@@ -57,188 +133,6 @@ const OrderBook = ({ marketTicker }) => {
     }
   };
 
-  const subscribeToOrderbook = () => {
-    return websocketService.subscribe(
-      ['orderbook_snapshot', 'orderbook_delta'],
-      [marketTicker],
-      (message) => {
-        if (message.msg && message.msg.market_ticker === marketTicker) {
-          // Update status based on message type
-          const now = new Date();
-          
-          if (message.type === 'orderbook_snapshot') {
-            setUpdateStatus(prev => ({
-              type: message.type,
-              timestamp: now,
-              details: 'Full Snapshot',
-              messageCount: prev.messageCount + 1,
-              deltaCount: prev.deltaCount,
-              snapshotCount: prev.snapshotCount + 1,
-              lastDelta: null
-            }));
-            processOrderbookSnapshot(message.msg);
-          } else if (message.type === 'orderbook_delta') {
-            const deltaDetails = {
-              price: message.msg.price,
-              delta: message.msg.delta,
-              side: message.msg.side,
-              action: message.msg.delta > 0 ? 'ADD' : 'REMOVE'
-            };
-            
-            setUpdateStatus(prev => ({
-              type: message.type,
-              timestamp: now,
-              details: `${deltaDetails.action} ${Math.abs(deltaDetails.delta)} @ ${deltaDetails.price}¢`,
-              messageCount: prev.messageCount + 1,
-              deltaCount: prev.deltaCount + 1,
-              snapshotCount: prev.snapshotCount,
-              lastDelta: deltaDetails
-            }));
-            processOrderbookDelta(message.msg);
-          }
-        }
-      }
-    );
-  };
-
-  const processOrderbookSnapshot = (orderbookData) => {
-    // The API now returns data in Kalshi format with separated YES and NO sides
-    // Structure: {"yes": [[price, quantity], ...], "no": [[price, quantity], ...]}
-    // YES side contains Buy YES orders (bids)
-    // NO side contains Buy NO orders
-    
-    const bids = [];
-    const asks = [];
-    const newFlashingBids = new Set();
-    const newFlashingAsks = new Set();
-    const now = new Date();
-    const newBidTimestamps = {};
-    const newAskTimestamps = {};
-    
-    // Process YES side (Buy YES orders) - these are bids
-    const yesOrders = orderbookData.yes || [];
-    yesOrders.forEach((level) => {
-      const [price, quantity] = level;
-      bids.push({ price, quantity });
-      
-      // Check if this level changed
-      const existingBid = orderbook.bids.find(b => b.price === price);
-      if (!existingBid || existingBid.quantity !== quantity) {
-        newFlashingBids.add(price);
-        newBidTimestamps[price] = now;
-      } else {
-        // Keep existing timestamp if level didn't change
-        newBidTimestamps[price] = levelTimestamps.bids[price] || now;
-      }
-    });
-    
-    // Process NO side (Buy NO orders)
-    // In buy-only architecture, we display NO orders at their actual price
-    const noOrders = orderbookData.no || [];
-    noOrders.forEach((level) => {
-      const [noPrice, quantity] = level;
-      // Display Buy NO orders at their actual price
-      asks.push({ price: noPrice, quantity });
-      
-      // Check if this level changed
-      const existingAsk = orderbook.asks.find(a => a.price === noPrice);
-      if (!existingAsk || existingAsk.quantity !== quantity) {
-        newFlashingAsks.add(noPrice);
-        newAskTimestamps[noPrice] = now;
-      } else {
-        // Keep existing timestamp if level didn't change
-        newAskTimestamps[noPrice] = levelTimestamps.asks[noPrice] || now;
-      }
-    });
-
-    // Sort both sides descending (highest first) since they are both BUY orders
-    bids.sort((a, b) => b.price - a.price);  // Buy YES - highest first
-    asks.sort((a, b) => b.price - a.price);  // Buy NO - highest first
-
-    setOrderbook({ bids, asks });
-    setLevelTimestamps({ bids: newBidTimestamps, asks: newAskTimestamps });
-    
-    // For snapshots, flash everything briefly
-    setFlashingLevels({ bids: new Set(bids.map(b => b.price)), asks: new Set(asks.map(a => a.price)) });
-    
-    setTimeout(() => {
-      setFlashingLevels({ bids: new Set(), asks: new Set() });
-    }, 2000); // Match CSS animation duration
-  };
-  
-  const processOrderbookDelta = (deltaData) => {
-    // Delta contains: price, delta (quantity change), side
-    const { price, delta, side } = deltaData;
-    const now = new Date();
-    
-    setOrderbook(prev => {
-      const newBids = [...prev.bids];
-      const newAsks = [...prev.asks];
-      const newFlashingBids = new Set();
-      const newFlashingAsks = new Set();
-      
-      if (side === 'yes') {
-        // Update YES side (bids)
-        const existingIndex = newBids.findIndex(b => b.price === price);
-        
-        if (delta > 0) {
-          // Add or increase quantity
-          if (existingIndex >= 0) {
-            newBids[existingIndex].quantity += delta;
-          } else {
-            newBids.push({ price, quantity: delta });
-            newBids.sort((a, b) => b.price - a.price);
-          }
-          newFlashingBids.add(price);
-        } else if (delta < 0) {
-          // Decrease quantity
-          if (existingIndex >= 0) {
-            newBids[existingIndex].quantity += delta; // delta is negative
-            if (newBids[existingIndex].quantity <= 0) {
-              newBids.splice(existingIndex, 1);
-            } else {
-              newFlashingBids.add(price);
-            }
-          }
-        }
-      } else if (side === 'no') {
-        // Update NO side (asks)
-        const existingIndex = newAsks.findIndex(a => a.price === price);
-        
-        if (delta > 0) {
-          // Add or increase quantity
-          if (existingIndex >= 0) {
-            newAsks[existingIndex].quantity += delta;
-          } else {
-            newAsks.push({ price, quantity: delta });
-            newAsks.sort((a, b) => b.price - a.price);
-          }
-          newFlashingAsks.add(price);
-        } else if (delta < 0) {
-          // Decrease quantity
-          if (existingIndex >= 0) {
-            newAsks[existingIndex].quantity += delta; // delta is negative
-            if (newAsks[existingIndex].quantity <= 0) {
-              newAsks.splice(existingIndex, 1);
-            } else {
-              newFlashingAsks.add(price);
-            }
-          }
-        }
-      }
-      
-      // Flash only the changed level
-      if (newFlashingBids.size > 0 || newFlashingAsks.size > 0) {
-        setFlashingLevels({ bids: newFlashingBids, asks: newFlashingAsks });
-        
-        setTimeout(() => {
-          setFlashingLevels({ bids: new Set(), asks: new Set() });
-        }, 2000);
-      }
-      
-      return { bids: newBids, asks: newAsks };
-    });
-  };
 
   if (!marketTicker) {
     return <div className="orderbook-empty">Select a market to view orderbook</div>;

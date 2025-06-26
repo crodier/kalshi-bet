@@ -133,7 +133,33 @@
   }
 }
 
-/* New flash colors for bid/ask updates */
+/* Flash colors for all update types */
+@keyframes flash-green {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: #4caf50;
+    color: white;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-red {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: #f44336;
+    color: white;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 @keyframes flash-blue {
   0% {
     background-color: transparent;
@@ -158,6 +184,14 @@
   100% {
     background-color: transparent;
   }
+}
+
+.flash-green {
+  animation: flash-green 2s ease-out;
+}
+
+.flash-red {
+  animation: flash-red 2s ease-out;
 }
 
 .flash-blue {

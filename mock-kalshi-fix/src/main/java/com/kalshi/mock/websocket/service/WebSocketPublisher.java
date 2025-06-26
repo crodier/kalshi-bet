@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kalshi.mock.event.OrderBookEvent;
 import com.kalshi.mock.event.OrderBookEventListener;
 import com.kalshi.mock.event.OrderBookEventPublisher;
+import com.kalshi.mock.event.OrderUpdateEvent;
+import com.kalshi.mock.event.OrderUpdateEventListener;
+import com.kalshi.mock.event.OrderUpdateEventPublisher;
 import com.kalshi.mock.websocket.dto.*;
 import com.kalshi.mock.websocket.handler.KalshiWebSocketHandler;
 import com.kalshi.mock.service.OrderBookService;
@@ -22,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-public class WebSocketPublisher implements OrderBookEventListener {
+public class WebSocketPublisher implements OrderBookEventListener, OrderUpdateEventListener {
     
     private static final Logger logger = LoggerFactory.getLogger(WebSocketPublisher.class);
     
@@ -34,6 +37,9 @@ public class WebSocketPublisher implements OrderBookEventListener {
     
     @Autowired
     private OrderBookEventPublisher eventPublisher;
+    
+    @Autowired
+    private OrderUpdateEventPublisher orderUpdateEventPublisher;
     
     @Autowired
     private ObjectMapper objectMapper;
@@ -50,7 +56,8 @@ public class WebSocketPublisher implements OrderBookEventListener {
     @PostConstruct
     public void init() {
         eventPublisher.addListener(this);
-        logger.info("WebSocketPublisher initialized and listening for order book events");
+        orderUpdateEventPublisher.addListener(this);
+        logger.info("WebSocketPublisher initialized and listening for order book and order update events");
     }
     
     @Override
@@ -129,6 +136,9 @@ public class WebSocketPublisher implements OrderBookEventListener {
         OrderBookEvent.DeltaData data = (OrderBookEvent.DeltaData) event.getData();
         String marketTicker = event.getMarketTicker();
         
+        logger.debug("Handling delta event for market: {}, price: {}, delta: {}, side: {}", 
+            marketTicker, data.getPrice(), data.getDelta(), data.getSide());
+        
         // Get subscribers for this market's orderbook_delta channel
         Set<String> subscribers = subscriptionManager.getSubscribedSessions(
             marketTicker, 
@@ -136,6 +146,7 @@ public class WebSocketPublisher implements OrderBookEventListener {
         );
         
         if (subscribers.isEmpty()) {
+            logger.debug("No subscribers for delta updates on market: {}", marketTicker);
             return;
         }
         
@@ -257,6 +268,47 @@ public class WebSocketPublisher implements OrderBookEventListener {
         }
     }
     
+    @Override
+    public void onOrderUpdateEvent(OrderUpdateEvent event) {
+        try {
+            handleOrderUpdateEvent(event);
+        } catch (Exception e) {
+            logger.error("Error handling order update event", e);
+        }
+    }
+    
+    private void handleOrderUpdateEvent(OrderUpdateEvent event) throws IOException {
+        String marketTicker = event.getMarketTicker();
+        
+        // Get subscribers for this market's order updates channel
+        Set<String> subscribers = subscriptionManager.getSubscribedSessions(
+            marketTicker, 
+            "orders"
+        );
+        
+        if (subscribers.isEmpty()) {
+            logger.debug("No subscribers for order updates on market: {}", marketTicker);
+            return;
+        }
+        
+        // Create order update message
+        WebSocketMessage message = new WebSocketMessage();
+        message.setType("order_update");
+        message.setSeq(sequenceNumber.getAndIncrement());
+        message.setMsg(event.getOrderUpdate());
+        
+        // Send to all subscribers
+        String jsonMessage = objectMapper.writeValueAsString(message);
+        for (String sessionId : subscribers) {
+            try {
+                webSocketHandler.sendMessage(sessionId, jsonMessage);
+                logger.debug("Sent order update to session: {} for market: {}", sessionId, marketTicker);
+            } catch (IOException e) {
+                logger.error("Failed to send order update to session: {}", sessionId, e);
+            }
+        }
+    }
+
     public void sendFillToUser(String userId, FillMessage fill) {
         // Find sessions for this user and send fill messages
         // This would require tracking user ID to session mapping
