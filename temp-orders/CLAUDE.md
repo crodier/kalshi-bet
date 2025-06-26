@@ -57,11 +57,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Execution Report Handling
 When we receive execution reports from the exchange:
 - Extract the ClOrdID (tag 11) to determine which order this relates to
-- Look up the betOrderId using our ClOrdID mapping
+- Look up the betOrderId using our ClOrdID mapping  
 - If the execution report is accepting a modify order:
   - Update the "latestModifyAccepted" Redis bucket with this ClOrdID
   - This ensures future cancels reference the correct order version
 - Attach the original order data from Redis to the execution report
+- The ExecutionReport contains:
+  - `betOrderId`: Our internal order ID
+  - `orderID`: The exchange's order ID (FIX tag 37)
+  - One of: `newOrder`, `modifyOrder`, or `cancelOrder` - the original order object
 - Forward the enriched execution report to the appropriate OrderActor
 
 ## Project Overview

@@ -181,11 +181,18 @@ class QuickfixJApplication(
                     return
                 }
                 
-                log.info("[FIX ExecutionReport] ClOrdID={}, BetOrderId={}, ExchangeOrderId={}, ExecType={}, OrdStatus={}, CumQty={}, LeavesQty={}, LastPx={}, LastQty={}, Symbol={}, Side={}, HasOriginalOrder={}",
+                val hasOriginalOrder = enrichedReport.newOrder != null || enrichedReport.modifyOrder != null || enrichedReport.cancelOrder != null
+                log.info("[FIX ExecutionReport] ClOrdID={}, BetOrderId={}, ExchangeOrderId={}, ExecType={}, OrdStatus={}, CumQty={}, LeavesQty={}, LastPx={}, LastQty={}, Symbol={}, Side={}, HasOriginalOrder={}, OrderType={}",
                     enrichedReport.clOrdID, enrichedReport.betOrderId, enrichedReport.orderID,
                     enrichedReport.execType, enrichedReport.ordStatus, enrichedReport.cumQty, 
                     enrichedReport.leavesQty, enrichedReport.lastPx, enrichedReport.lastQty, 
-                    enrichedReport.instrument.symbol, enrichedReport.side, enrichedReport.originalOrder != null)
+                    enrichedReport.instrument.symbol, enrichedReport.side, hasOriginalOrder,
+                    when {
+                        enrichedReport.newOrder != null -> "NewOrder"
+                        enrichedReport.modifyOrder != null -> "ModifyOrder" 
+                        enrichedReport.cancelOrder != null -> "CancelOrder"
+                        else -> "Unknown"
+                    })
 
                 // Handle order status and execution updates
                 val orderRef = orderActorResolver(betOrderId)
