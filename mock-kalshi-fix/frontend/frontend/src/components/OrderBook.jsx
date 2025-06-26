@@ -8,6 +8,7 @@ const OrderBook = ({ marketTicker }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [subscriptionId, setSubscriptionId] = useState(null);
+  const [flashingLevels, setFlashingLevels] = useState({ bids: new Set(), asks: new Set() });
 
   useEffect(() => {
     if (!marketTicker) return;
@@ -66,12 +67,20 @@ const OrderBook = ({ marketTicker }) => {
     
     const bids = [];
     const asks = [];
+    const newFlashingBids = new Set();
+    const newFlashingAsks = new Set();
     
     // Process YES side (Buy YES orders) - these are bids
     const yesOrders = orderbookData.yes || [];
     yesOrders.forEach((level) => {
       const [price, quantity] = level;
       bids.push({ price, quantity });
+      
+      // Check if this level changed
+      const existingBid = orderbook.bids.find(b => b.price === price);
+      if (!existingBid || existingBid.quantity !== quantity) {
+        newFlashingBids.add(price);
+      }
     });
     
     // Process NO side (Buy NO orders)
@@ -81,6 +90,12 @@ const OrderBook = ({ marketTicker }) => {
       const [noPrice, quantity] = level;
       // Display Buy NO orders at their actual price
       asks.push({ price: noPrice, quantity });
+      
+      // Check if this level changed
+      const existingAsk = orderbook.asks.find(a => a.price === noPrice);
+      if (!existingAsk || existingAsk.quantity !== quantity) {
+        newFlashingAsks.add(noPrice);
+      }
     });
 
     // Sort bids descending (highest first) and asks ascending (lowest first)
@@ -88,6 +103,14 @@ const OrderBook = ({ marketTicker }) => {
     asks.sort((a, b) => a.price - b.price);
 
     setOrderbook({ bids, asks });
+    
+    // Set flashing levels and clear them after animation
+    if (newFlashingBids.size > 0 || newFlashingAsks.size > 0) {
+      setFlashingLevels({ bids: newFlashingBids, asks: newFlashingAsks });
+      setTimeout(() => {
+        setFlashingLevels({ bids: new Set(), asks: new Set() });
+      }, 2000); // Flash for 2000ms to match animation duration
+    }
   };
 
   if (!marketTicker) {
@@ -109,7 +132,7 @@ const OrderBook = ({ marketTicker }) => {
           </div>
           <div className="orderbook-levels">
             {orderbook.bids.map((level, index) => (
-              <div key={`bid-${index}`} className="level bid">
+              <div key={`bid-${index}`} className={`level bid ${flashingLevels.bids.has(level.price) ? 'flash-green' : ''}`}>
                 <span className="price">{level.price}¢</span>
                 <span className="quantity">{level.quantity}</span>
               </div>
@@ -128,7 +151,7 @@ const OrderBook = ({ marketTicker }) => {
           </div>
           <div className="orderbook-levels">
             {orderbook.asks.map((level, index) => (
-              <div key={`ask-${index}`} className="level ask">
+              <div key={`ask-${index}`} className={`level ask ${flashingLevels.asks.has(level.price) ? 'flash-red' : ''}`}>
                 <span className="price">{level.price}¢</span>
                 <span className="quantity">{level.quantity}</span>
               </div>

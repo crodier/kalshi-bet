@@ -397,6 +397,51 @@ public class ConcurrentOrderBook {
     /**
      * Interface for order book event listeners
      */
+    /**
+     * Remove all zero-quantity orders from the order book.
+     * This method should be called after matching is complete to clean up
+     * fully filled orders that should no longer appear in the order book.
+     */
+    public void removeZeroQuantityOrders() {
+        lock.writeLock().lock();
+        try {
+            // Clean up bids
+            Iterator<Map.Entry<Integer, Queue<OrderBookEntry>>> bidIterator = bids.entrySet().iterator();
+            while (bidIterator.hasNext()) {
+                Map.Entry<Integer, Queue<OrderBookEntry>> entry = bidIterator.next();
+                Queue<OrderBookEntry> orders = entry.getValue();
+                
+                // Remove zero-quantity orders from the queue
+                orders.removeIf(order -> order.getQuantity() == 0);
+                
+                // If the entire price level is now empty, remove it
+                if (orders.isEmpty()) {
+                    bidIterator.remove();
+                }
+            }
+            
+            // Clean up asks
+            Iterator<Map.Entry<Integer, Queue<OrderBookEntry>>> askIterator = asks.entrySet().iterator();
+            while (askIterator.hasNext()) {
+                Map.Entry<Integer, Queue<OrderBookEntry>> entry = askIterator.next();
+                Queue<OrderBookEntry> orders = entry.getValue();
+                
+                // Remove zero-quantity orders from the queue
+                orders.removeIf(order -> order.getQuantity() == 0);
+                
+                // If the entire price level is now empty, remove it
+                if (orders.isEmpty()) {
+                    askIterator.remove();
+                }
+            }
+            
+            // Also clean up the orderMap
+            orderMap.entrySet().removeIf(entry -> entry.getValue().getQuantity() == 0);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     public interface OrderBookListener {
         void onOrderAdded(String marketTicker, OrderBookEntry order);
         void onOrderCanceled(String marketTicker, OrderBookEntry order);

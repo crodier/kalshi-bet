@@ -175,13 +175,28 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
                 // Publish trade event for market data update
                 // The MarketService will listen for this event and update prices
                 
+                // Get best bid/ask from order book
+                OrderbookResponse.OrderbookData orderbookData = orderBook.getOrderbookSnapshotKalshiFormat(1);
+                Integer bestBid = null;
+                Integer bestAsk = null;
+                
+                // Get best YES bid (highest price)
+                if (orderbookData.getYes() != null && !orderbookData.getYes().isEmpty()) {
+                    bestBid = orderbookData.getYes().get(0).get(0); // First element is price
+                }
+                
+                // Get best NO bid which represents ask (lowest price to sell YES)
+                if (orderbookData.getNo() != null && !orderbookData.getNo().isEmpty()) {
+                    bestAsk = 100 - orderbookData.getNo().get(0).get(0); // Convert NO price to YES equivalent
+                }
+                
                 // Publish ticker update event for WebSocket subscribers
                 OrderBookEvent.TickerData tickerData = new OrderBookEvent.TickerData(
                     marketTicker,
                     lastPrice,
                     totalVolume,
-                    lastPrice, // For now, using last price as best bid/ask
-                    lastPrice
+                    bestBid,
+                    bestAsk
                 );
                 OrderBookEvent tickerEvent = new OrderBookEvent(
                     OrderBookEvent.EventType.TICKER_UPDATE,
@@ -191,6 +206,9 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
                 eventPublisher.publishEvent(tickerEvent);
             }
         }
+        
+        // Clean up any zero-quantity orders from the order book after matching
+        orderBook.removeZeroQuantityOrders();
         
         // If order has remaining quantity, add to order book
         if (bookEntry.getQuantity() > 0) {
@@ -353,6 +371,12 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
             );
         }
         
+        // Clean up any zero-quantity orders from the order book
+        ConcurrentOrderBook orderBook = orderBooks.get(marketTicker);
+        if (orderBook != null) {
+            orderBook.removeZeroQuantityOrders();
+        }
+        
         // Publish order book snapshot after execution
         publishOrderBookSnapshot(marketTicker);
     }
@@ -403,6 +427,44 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
         OrderBookEvent.SnapshotData snapshotData = new OrderBookEvent.SnapshotData(yesLevels, noLevels);
         OrderBookEvent event = new OrderBookEvent(OrderBookEvent.EventType.SNAPSHOT, marketTicker, snapshotData);
         eventPublisher.publishEvent(event);
+        
+        // Also publish ticker update with current best bid/ask
+        publishTickerUpdate(marketTicker, orderBook);
+    }
+    
+    private void publishTickerUpdate(String marketTicker, ConcurrentOrderBook orderBook) {
+        // Get best bid/ask from order book
+        OrderbookResponse.OrderbookData orderbookData = orderBook.getOrderbookSnapshotKalshiFormat(1);
+        Integer bestBid = null;
+        Integer bestAsk = null;
+        
+        // Get best YES bid (highest price)
+        if (orderbookData.getYes() != null && !orderbookData.getYes().isEmpty()) {
+            bestBid = orderbookData.getYes().get(0).get(0); // First element is price
+        }
+        
+        // Get best NO bid which represents ask (lowest price to sell YES)
+        if (orderbookData.getNo() != null && !orderbookData.getNo().isEmpty()) {
+            bestAsk = 100 - orderbookData.getNo().get(0).get(0); // Convert NO price to YES equivalent
+        }
+        
+        // For now, we'll just send bid/ask without last price and volume
+        // Those should come from actual trades
+        
+        // Publish ticker update event
+        OrderBookEvent.TickerData tickerData = new OrderBookEvent.TickerData(
+            marketTicker,
+            null, // lastPrice - only updated on trades
+            0,    // volume - only updated on trades
+            bestBid,
+            bestAsk
+        );
+        OrderBookEvent tickerEvent = new OrderBookEvent(
+            OrderBookEvent.EventType.TICKER_UPDATE,
+            marketTicker,
+            tickerData
+        );
+        eventPublisher.publishEvent(tickerEvent);
     }
     
     public void publishInitialSnapshot(String marketTicker, String sessionId) {

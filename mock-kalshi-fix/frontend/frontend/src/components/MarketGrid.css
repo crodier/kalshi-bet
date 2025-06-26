@@ -19,7 +19,7 @@
 
 .grid-header {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   background: #e9ecef;
   font-weight: bold;
   border-bottom: 2px solid #dee2e6;
@@ -27,7 +27,7 @@
 
 .grid-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   border-bottom: 1px solid #dee2e6;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -71,6 +71,18 @@
   font-size: 16px;
 }
 
+.bid {
+  font-weight: bold;
+  color: #2e7d32;
+  font-size: 14px;
+}
+
+.ask {
+  font-weight: bold;
+  color: #d32f2f;
+  font-size: 14px;
+}
+
 .volume {
   color: #666;
 }
@@ -83,4 +95,40 @@
 
 .error {
   color: #d32f2f;
+}
+
+/* Flash animation with slow fade */
+@keyframes flash-market-update {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: #4caf50;
+    color: white;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-update {
+  animation: flash-market-update 2s ease-out;
+}
+
+.flash-update .price {
+  animation: flash-price 2s ease-out;
+}
+
+@keyframes flash-price {
+  0% {
+    color: #2e7d32;
+  }
+  20% {
+    color: white;
+    transform: scale(1.1);
+  }
+  100% {
+    color: #2e7d32;
+    transform: scale(1);
+  }
 }

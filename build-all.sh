@@ -24,19 +24,11 @@ print_status() {
     fi
 }
 
-# Build kalshi-fix-api first (Gradle)
+# Build all Maven modules (including kalshi-fix-api)
 echo ""
-echo "Building kalshi-fix-api (Gradle)..."
-cd kalshi-fix-api
-./gradlew publishToMavenLocal -x test
-print_status "kalshi-fix-api build"
-cd ..
-
-# Build all Maven modules
-echo ""
-echo "Building Maven modules..."
+echo "Building all modules with Maven..."
 mvn clean install -DskipTests
-print_status "Maven modules build"
+print_status "Maven build"
 
 echo ""
 echo "========================================="
