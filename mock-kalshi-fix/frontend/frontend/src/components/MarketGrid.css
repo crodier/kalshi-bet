@@ -19,7 +19,7 @@
 
 .grid-header {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1.2fr 1.2fr 1.5fr 1.5fr 0.8fr 0.8fr;
   background: #e9ecef;
   font-weight: bold;
   border-bottom: 2px solid #dee2e6;
@@ -27,7 +27,7 @@
 
 .grid-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1.2fr 1.2fr 1.5fr 1.5fr 0.8fr 0.8fr;
   border-bottom: 1px solid #dee2e6;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -131,4 +131,100 @@
     color: #2e7d32;
     transform: scale(1);
   }
+}
+
+/* New flash colors for bid/ask updates */
+@keyframes flash-blue {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: #2196f3;
+    color: white;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-orange {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: #ff9800;
+    color: white;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-blue {
+  animation: flash-blue 2s ease-out;
+}
+
+.flash-orange {
+  animation: flash-orange 2s ease-out;
+}
+
+/* Purple flash for executions */
+@keyframes flash-purple {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: #9c27b0;
+    color: white;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-purple {
+  animation: flash-purple 2s ease-out;
+}
+
+/* Styling for timestamps and update cells */
+.timestamp {
+  font-size: 0.7rem;
+  color: #666;
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+.price-value {
+  font-weight: 600;
+}
+
+.update-action {
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.last-bid-update, .last-ask-update {
+  font-size: 0.75rem;
+  min-width: 140px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.bid, .ask {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.last-execution {
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 120px;
+}
+
+.execution-price {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #9c27b0;
+  font-family: monospace;
 }

@@ -9,6 +9,16 @@ const OrderBook = ({ marketTicker }) => {
   const [error, setError] = useState(null);
   const [subscriptionId, setSubscriptionId] = useState(null);
   const [flashingLevels, setFlashingLevels] = useState({ bids: new Set(), asks: new Set() });
+  const [levelTimestamps, setLevelTimestamps] = useState({ bids: {}, asks: {} }); // Track timestamps for each price level
+  const [updateStatus, setUpdateStatus] = useState({ 
+    type: '', 
+    timestamp: null, 
+    details: '',
+    messageCount: 0,
+    deltaCount: 0,
+    snapshotCount: 0,
+    lastDelta: null
+  });
 
   useEffect(() => {
     if (!marketTicker) return;
@@ -37,7 +47,7 @@ const OrderBook = ({ marketTicker }) => {
       const data = response.data;
       
       // Process the orderbook data
-      processOrderbook(data.orderbook);
+      processOrderbookSnapshot(data.orderbook);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching orderbook:', err);
@@ -53,13 +63,45 @@ const OrderBook = ({ marketTicker }) => {
       [marketTicker],
       (message) => {
         if (message.msg && message.msg.market_ticker === marketTicker) {
-          processOrderbook(message.msg);
+          // Update status based on message type
+          const now = new Date();
+          
+          if (message.type === 'orderbook_snapshot') {
+            setUpdateStatus(prev => ({
+              type: message.type,
+              timestamp: now,
+              details: 'Full Snapshot',
+              messageCount: prev.messageCount + 1,
+              deltaCount: prev.deltaCount,
+              snapshotCount: prev.snapshotCount + 1,
+              lastDelta: null
+            }));
+            processOrderbookSnapshot(message.msg);
+          } else if (message.type === 'orderbook_delta') {
+            const deltaDetails = {
+              price: message.msg.price,
+              delta: message.msg.delta,
+              side: message.msg.side,
+              action: message.msg.delta > 0 ? 'ADD' : 'REMOVE'
+            };
+            
+            setUpdateStatus(prev => ({
+              type: message.type,
+              timestamp: now,
+              details: `${deltaDetails.action} ${Math.abs(deltaDetails.delta)} @ ${deltaDetails.price}¢`,
+              messageCount: prev.messageCount + 1,
+              deltaCount: prev.deltaCount + 1,
+              snapshotCount: prev.snapshotCount,
+              lastDelta: deltaDetails
+            }));
+            processOrderbookDelta(message.msg);
+          }
         }
       }
     );
   };
 
-  const processOrderbook = (orderbookData) => {
+  const processOrderbookSnapshot = (orderbookData) => {
     // The API now returns data in Kalshi format with separated YES and NO sides
     // Structure: {"yes": [[price, quantity], ...], "no": [[price, quantity], ...]}
     // YES side contains Buy YES orders (bids)
@@ -69,6 +111,9 @@ const OrderBook = ({ marketTicker }) => {
     const asks = [];
     const newFlashingBids = new Set();
     const newFlashingAsks = new Set();
+    const now = new Date();
+    const newBidTimestamps = {};
+    const newAskTimestamps = {};
     
     // Process YES side (Buy YES orders) - these are bids
     const yesOrders = orderbookData.yes || [];
@@ -80,6 +125,10 @@ const OrderBook = ({ marketTicker }) => {
       const existingBid = orderbook.bids.find(b => b.price === price);
       if (!existingBid || existingBid.quantity !== quantity) {
         newFlashingBids.add(price);
+        newBidTimestamps[price] = now;
+      } else {
+        // Keep existing timestamp if level didn't change
+        newBidTimestamps[price] = levelTimestamps.bids[price] || now;
       }
     });
     
@@ -95,22 +144,100 @@ const OrderBook = ({ marketTicker }) => {
       const existingAsk = orderbook.asks.find(a => a.price === noPrice);
       if (!existingAsk || existingAsk.quantity !== quantity) {
         newFlashingAsks.add(noPrice);
+        newAskTimestamps[noPrice] = now;
+      } else {
+        // Keep existing timestamp if level didn't change
+        newAskTimestamps[noPrice] = levelTimestamps.asks[noPrice] || now;
       }
     });
 
-    // Sort bids descending (highest first) and asks ascending (lowest first)
-    bids.sort((a, b) => b.price - a.price);
-    asks.sort((a, b) => a.price - b.price);
+    // Sort both sides descending (highest first) since they are both BUY orders
+    bids.sort((a, b) => b.price - a.price);  // Buy YES - highest first
+    asks.sort((a, b) => b.price - a.price);  // Buy NO - highest first
 
     setOrderbook({ bids, asks });
+    setLevelTimestamps({ bids: newBidTimestamps, asks: newAskTimestamps });
     
-    // Set flashing levels and clear them after animation
-    if (newFlashingBids.size > 0 || newFlashingAsks.size > 0) {
-      setFlashingLevels({ bids: newFlashingBids, asks: newFlashingAsks });
-      setTimeout(() => {
-        setFlashingLevels({ bids: new Set(), asks: new Set() });
-      }, 2000); // Flash for 2000ms to match animation duration
-    }
+    // For snapshots, flash everything briefly
+    setFlashingLevels({ bids: new Set(bids.map(b => b.price)), asks: new Set(asks.map(a => a.price)) });
+    
+    setTimeout(() => {
+      setFlashingLevels({ bids: new Set(), asks: new Set() });
+    }, 2000); // Match CSS animation duration
+  };
+  
+  const processOrderbookDelta = (deltaData) => {
+    // Delta contains: price, delta (quantity change), side
+    const { price, delta, side } = deltaData;
+    const now = new Date();
+    
+    setOrderbook(prev => {
+      const newBids = [...prev.bids];
+      const newAsks = [...prev.asks];
+      const newFlashingBids = new Set();
+      const newFlashingAsks = new Set();
+      
+      if (side === 'yes') {
+        // Update YES side (bids)
+        const existingIndex = newBids.findIndex(b => b.price === price);
+        
+        if (delta > 0) {
+          // Add or increase quantity
+          if (existingIndex >= 0) {
+            newBids[existingIndex].quantity += delta;
+          } else {
+            newBids.push({ price, quantity: delta });
+            newBids.sort((a, b) => b.price - a.price);
+          }
+          newFlashingBids.add(price);
+        } else if (delta < 0) {
+          // Decrease quantity
+          if (existingIndex >= 0) {
+            newBids[existingIndex].quantity += delta; // delta is negative
+            if (newBids[existingIndex].quantity <= 0) {
+              newBids.splice(existingIndex, 1);
+            } else {
+              newFlashingBids.add(price);
+            }
+          }
+        }
+      } else if (side === 'no') {
+        // Update NO side (asks)
+        const existingIndex = newAsks.findIndex(a => a.price === price);
+        
+        if (delta > 0) {
+          // Add or increase quantity
+          if (existingIndex >= 0) {
+            newAsks[existingIndex].quantity += delta;
+          } else {
+            newAsks.push({ price, quantity: delta });
+            newAsks.sort((a, b) => b.price - a.price);
+          }
+          newFlashingAsks.add(price);
+        } else if (delta < 0) {
+          // Decrease quantity
+          if (existingIndex >= 0) {
+            newAsks[existingIndex].quantity += delta; // delta is negative
+            if (newAsks[existingIndex].quantity <= 0) {
+              newAsks.splice(existingIndex, 1);
+            } else {
+              newFlashingAsks.add(price);
+            }
+          }
+        }
+      }
+      
+      // Flash only the changed level
+      if (newFlashingBids.size > 0 || newFlashingAsks.size > 0) {
+        setFlashingLevels({ bids: newFlashingBids, asks: newFlashingAsks });
+        
+        setTimeout(() => {
+          setFlashingLevels({ bids: new Set(), asks: new Set() });
+        }, 2000);
+      }
+      
+      return { bids: newBids, asks: newAsks };
+    });
   };
 
   if (!marketTicker) {
@@ -122,6 +249,39 @@ const OrderBook = ({ marketTicker }) => {
 
   return (
     <div className="orderbook">
+      <div className="orderbook-status">
+        <div className="status-line">
+          <span className={`status-type ${updateStatus.type === 'orderbook_snapshot' ? 'snapshot' : 'delta'}`}>
+            {updateStatus.type === 'orderbook_snapshot' ? '📊 SNAPSHOT' : '🔄 DELTA'}
+          </span>
+          <span className="status-details">
+            {updateStatus.type === 'orderbook_snapshot' ? 
+              `Timestamp: ${updateStatus.timestamp?.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                fractionalSecondDigits: 3
+              })}` :
+              updateStatus.details
+            } • Messages: {updateStatus.messageCount} • 
+            Deltas: {updateStatus.deltaCount} • Snapshots: {updateStatus.snapshotCount}
+          </span>
+        </div>
+      </div>
+      
+      {/* Dedicated Delta Indicators Area */}
+      <div className="delta-indicators-area">
+        {updateStatus.lastDelta && (
+          <div className={`delta-indicator delta-${updateStatus.lastDelta.side}`}>
+            <span className="delta-side">{updateStatus.lastDelta.side.toUpperCase()}:</span>
+            <span className="delta-action">{updateStatus.lastDelta.action}</span>
+            <span className="delta-quantity">{Math.abs(updateStatus.lastDelta.delta)}</span>
+            <span className="delta-price">@ {updateStatus.lastDelta.price}¢</span>
+          </div>
+        )}
+      </div>
+      
       <h3>Order Book - {marketTicker}</h3>
       <div className="orderbook-container">
         <div className="orderbook-side bids">

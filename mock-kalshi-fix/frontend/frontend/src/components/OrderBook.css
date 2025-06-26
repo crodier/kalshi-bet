@@ -5,6 +5,109 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.orderbook-status {
+  background: #e9ecef;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-type {
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.status-type.snapshot {
+  background: #cfe2ff;
+  color: #084298;
+}
+
+.status-type.delta {
+  background: #e0cffc;
+  color: #59359a;
+}
+
+.status-details {
+  flex: 1;
+  color: #6c757d;
+}
+
+.status-time {
+  color: #495057;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+/* Dedicated Delta Indicators Area */
+.delta-indicators-area {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delta-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.delta-indicator.delta-yes {
+  color: #198754;
+}
+
+.delta-indicator.delta-no {
+  color: #dc3545;
+}
+
+.delta-side {
+  background: rgba(108, 117, 125, 0.2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+.delta-action {
+  font-weight: bold;
+}
+
+.delta-quantity {
+  color: #0d6efd;
+}
+
+.delta-price {
+  color: #6f42c1;
+}
+
+.delta-indicator {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-align: center;
+  color: #495057;
+}
+
 .orderbook h3 {
   margin: 0 0 20px 0;
   font-size: 20px;
