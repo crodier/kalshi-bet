@@ -1,0 +1,100 @@
+### Get all orders
+GET http://localhost:9090/trade-api/v2/portfolio/orders
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get orders with filters
+GET http://localhost:9090/trade-api/v2/portfolio/orders?ticker=DUMMY_TEST&status=open&limit=10
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get specific order
+GET http://localhost:9090/trade-api/v2/portfolio/orders/ORD-1001
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Create buy order
+POST http://localhost:9090/trade-api/v2/portfolio/orders
+Content-Type: application/json
+KALSHI-ACCESS-KEY: demo-api-key
+
+{
+  "market_ticker": "DUMMY_TEST",
+  "side": "yes",
+  "action": "buy",
+  "type": "limit",
+  "count": 100,
+  "price": 65,
+  "client_order_id": "MY-BUY-ORDER-001"
+}
+
+### Create sell order
+POST http://localhost:9090/trade-api/v2/portfolio/orders
+Content-Type: application/json
+KALSHI-ACCESS-KEY: demo-api-key
+
+{
+  "market_ticker": "DUMMY_TEST",
+  "side": "yes",
+  "action": "sell",
+  "type": "limit",
+  "count": 50,
+  "price": 70,
+  "client_order_id": "MY-SELL-ORDER-001"
+}
+
+### Create NO order (converts to YES)
+POST http://localhost:9090/trade-api/v2/portfolio/orders
+Content-Type: application/json
+KALSHI-ACCESS-KEY: demo-api-key
+
+{
+  "market_ticker": "DUMMY_TEST",
+  "side": "no",
+  "action": "buy",
+  "type": "limit",
+  "count": 25,
+  "price": 30,
+  "client_order_id": "MY-NO-ORDER-001"
+}
+
+### Create market order
+POST http://localhost:9090/trade-api/v2/portfolio/orders
+Content-Type: application/json
+KALSHI-ACCESS-KEY: demo-api-key
+
+{
+  "market_ticker": "DUMMY_TEST",
+  "side": "yes",
+  "action": "buy",
+  "type": "market",
+  "count": 10,
+  "client_order_id": "MY-MARKET-ORDER-001"
+}
+
+### Create batch orders
+POST http://localhost:9090/trade-api/v2/portfolio/batch_orders
+Content-Type: application/json
+KALSHI-ACCESS-KEY: demo-api-key
+
+[
+  {
+    "market_ticker": "DUMMY_TEST",
+    "side": "yes",
+    "action": "buy",
+    "type": "limit",
+    "count": 25,
+    "price": 60,
+    "client_order_id": "BATCH-BUY-1"
+  },
+  {
+    "market_ticker": "DUMMY_TEST",
+    "side": "yes",
+    "action": "sell",
+    "type": "limit",
+    "count": 40,
+    "price": 75,
+    "client_order_id": "BATCH-SELL-1"
+  }
+]
+
+### Cancel order (replace ORD-1001 with actual order ID)
+DELETE http://localhost:9090/trade-api/v2/portfolio/orders/ORD-1001
+KALSHI-ACCESS-KEY: demo-api-key

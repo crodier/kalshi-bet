@@ -1,0 +1,21 @@
+---
+name: PR Deploy
+run-name: 🚀 PR Deploy ${{ github.event.deployment.ref }} to ${{ github.event.deployment.environment }}
+
+on: [deployment]
+
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    name: 🚀 PR Deploy - ${{ github.event.deployment.environment }}
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_pr.yaml@v1
+    secrets: inherit
+    with:
+      dd-github-job-name: 🚀 PR Deploy - ${{ github.event.deployment.environment }}
+      environment: ${{ github.event.deployment.environment }}
+      image-tag: ${{ github.event.deployment.payload.image_tag }}
+      conch-data: ${{ github.event.deployment.payload.conch-data }}

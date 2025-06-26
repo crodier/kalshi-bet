@@ -1,0 +1,131 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: exchange-order-api
+  namespace: fex-1 # TODO change when we have one created
+spec:
+  chart:
+    spec:
+      chart: fbg-service
+      sourceRef:
+        kind: HelmRepository
+        name: fbg-helm
+        namespace: flux-system
+      version: v1.0.5
+  install:
+    disableWait: true
+  interval: 1m
+  upgrade:
+    disableWait: true
+  values:
+#    rollout: # This is what the default values.yaml file uses, please comment back in and change if necessary
+#      strategy:
+#        canary:
+#          steps:
+#            - pause:
+#                duration: 15
+#            - setWeight: 50
+#            - pause:
+#                duration: 15
+    autodeployEnabled: ${AUTODEPLOY}
+    environment: ${ENVIRONMENT}
+    production: ${PRODUCTION}
+    image:
+      name: ci-exchange-order-api
+      registry: ${IMAGE_REGISTRY}
+      tag: ${IMAGE_TAG}
+    team: exchange # DataDog team handle. List of teams: https://app.datadoghq.com/teams (example: dash, cat-profile-team)
+    firehydrantWebhook: fh-exchange # Webhook name in Datadog's Webhook Integration. Will be used in montiors as `@webhook-<fireHydrantWebhook>`
+    alertsSlackChannel: fanatics-exchange-eng # Slack channel name for alerts. Will be used in montiors as `@slack-<alertsSlackChannel>`. Example: myteam-non-prod-alerts (you will also need a 'prod' channel for the prod env)
+    loggingConfig:
+      loggers: []
+      rootLogLevel: INFO
+      type: logback
+#    sendLogsToCloudWatch: # All log levels go to DataDog by default, change noisy TRACE or similar logs here to make them go to CloudWatch instead
+#      - "false"
+    name: exchange-order-api
+    iamRole: arn:aws:iam::${AWS_ACCOUNT_NUMBER}:role/eks-application-iam-exchange-order-api-role
+    serverPort: 8080
+    ports:
+      - name: http
+        port: 8080
+      - name: pekko_management
+        port: 8081
+      - name: pekko_artery
+        port: 7355
+    env:
+      - name: DD_PROFILING_ENABLED
+        value: 'true'
+      - name: DD_PROFILING_ALLOCATION_ENABLED
+        value: 'true'
+      - name: DD_PROFILING_DIRECTALLOCATION_ENABLED
+        value: 'true'
+      - name: PEKKO_PORT
+        value: '7355'
+      - name: PEKKO_MANAGEMENT_PORT
+        value: '8081'
+    properties:
+      management:
+        server:
+          port: 8081
+        statsd:
+          metrics:
+            export:
+              enabled: true
+              host: ${STATSD_HOST}
+              port: ${STATSD_PORT}
+    probes:
+      liveness:
+        path: /actuator/health/liveness
+        port: 8081
+      readiness:
+        path: /actuator/health/readiness
+        port: 8081
+      startup:
+        path: /actuator/health/liveness
+        port: 8081
+
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 250m
+        memory: 2Gi
+
+    scaling:
+#      auto:
+#        maxReplicas: 1
+#        minReplicas: 1
+#        targetCPUUtilizationPercentage: 80
+#        targetMemoryUtilizationPercentage: 80
+#      type: auto
+      manual:
+        replicas: 0
+      type: manual
+
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pod-reader
+  namespace: fex-1
+rules:
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: read-pods
+  namespace: fex-1
+subjects:
+  # Note the `name` line below. The first default refers to the namespace. The second refers to the service account name.
+  # For instance, `name: system:serviceaccount:myns:default` would refer to the default service account in namespace `myns`
+  - kind: User
+    name: system:serviceaccount:fex-orders-1:default
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io

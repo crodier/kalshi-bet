@@ -1,0 +1,27 @@
+### Get candlesticks for market (1 minute intervals)
+GET http://localhost:9090/trade-api/v2/series/TESTSERIES1/markets/TESTMARKET1/candlesticks?start_ts=1735689600000&end_ts=1735776000000&period_interval=1
+Accept: application/json
+
+### Get candlesticks for market (1 hour intervals)
+GET http://localhost:9090/trade-api/v2/series/TESTSERIES1/markets/TESTMARKET1/candlesticks?start_ts=1735689600000&end_ts=1735776000000&period_interval=60
+Accept: application/json
+
+### Get candlesticks for market (1 day intervals)
+GET http://localhost:9090/trade-api/v2/series/TESTSERIES1/markets/TESTMARKET1/candlesticks?start_ts=1735689600000&end_ts=1735776000000&period_interval=1440
+Accept: application/json
+
+### Get all trades
+GET http://localhost:9090/trade-api/v2/markets/trades
+Accept: application/json
+
+### Get trades for specific market
+GET http://localhost:9090/trade-api/v2/markets/trades?ticker=DUMMY_TEST
+Accept: application/json
+
+### Get trades with time range
+GET http://localhost:9090/trade-api/v2/markets/trades?min_ts=1735689600000&max_ts=1735776000000
+Accept: application/json
+
+### Get trades with pagination
+GET http://localhost:9090/trade-api/v2/markets/trades?limit=10
+Accept: application/json

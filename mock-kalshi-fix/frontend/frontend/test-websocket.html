@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    
+    <script>
+        const ws = new WebSocket('ws://localhost:9090/trade-api/ws/v2');
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        ws.onopen = () => {
+            statusDiv.textContent = 'Connected! Subscribing to DUMMY_TEST market...';
+            
+            const subscription = {
+                id: 1,
+                cmd: 'subscribe',
+                params: {
+                    channels: ['orderbook_snapshot'],
+                    market_tickers: ['DUMMY_TEST']
+                }
+            };
+            
+            ws.send(JSON.stringify(subscription));
+        };
+        
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = JSON.stringify(message, null, 2);
+            messageDiv.style.whiteSpace = 'pre';
+            messageDiv.style.background = '#f0f0f0';
+            messageDiv.style.padding = '10px';
+            messageDiv.style.margin = '5px 0';
+            messagesDiv.appendChild(messageDiv);
+        };
+        
+        ws.onerror = (error) => {
+            statusDiv.textContent = 'Error: ' + error;
+            statusDiv.style.color = 'red';
+        };
+        
+        ws.onclose = () => {
+            statusDiv.textContent = 'Disconnected';
+            statusDiv.style.color = 'orange';
+        };
+    </script>
+</body>
+</html>

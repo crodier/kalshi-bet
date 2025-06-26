@@ -1,0 +1,92 @@
+---
+name: Build & Deploy - Hotfix
+run-name: ➡️ ${{ github.ref }} - ${{ github.event_name }} (${{ github.event.action }})
+
+on:
+  push:
+    branches: [hotfix/*]
+    tags:
+      - '*-*'
+  workflow_dispatch:
+  pull_request:
+    branches: [hotfix/*]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  id-token: write
+  contents: write
+  packages: read
+  pull-requests: read
+
+jobs:
+
+  push:
+    uses: fanatics-gaming/actions/.github/workflows/app_push.yaml@v1
+    secrets: inherit
+    with:
+      start-deploy: false
+      java-version: 21
+
+  test:
+    name: 🚀 Deploy - test
+    needs: [push]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    if: always() && !cancelled() && (github.event_name == 'push' && github.ref_type == 'tag')
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - test-1
+    with:
+      environment: ${{ matrix.environment }}
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - test (${{ matrix.environment }})
+
+  inf-dev:
+    name: 🚀 Deploy - inf-dev
+    needs: [push]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    if: always() && !cancelled() && (github.event_name == 'push' && github.ref_type == 'tag')
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - inf-dev-1
+    with:
+      environment: ${{ matrix.environment }}
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - inf-dev (${{ matrix.environment }})
+
+  cert:
+    name: 🚀 Deploy - cert
+    needs: [push]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    if: always() && !cancelled() && (github.event_name == 'push' && github.ref_type == 'tag')
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - cert-1
+    with:
+      environment: ${{ matrix.environment }}
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - cert (${{ matrix.environment }})
+
+  prod:
+    name: 🚀 Deploy - prod
+    needs: [push]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    if: always() && !cancelled() && (github.event_name == 'push' && github.ref_type == 'tag')
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - prod-1
+    with:
+      environment: ${{ matrix.environment }}
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - prod (${{ matrix.environment }})

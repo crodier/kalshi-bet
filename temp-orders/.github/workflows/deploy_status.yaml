@@ -1,0 +1,16 @@
+---
+name: Deploy Status
+run-name: 🚀 Update Deploy Status ${{ github.event.deployment.ref }} to ${{ github.event.deployment.environment }}
+
+on: [deployment_status]
+
+permissions:
+  id-token: write
+  contents: write
+  deployments: read
+
+jobs:
+  deploy-update:
+    name: 🚀 Deploy Update - ${{ github.event.deployment.environment }}
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_status.yaml@v1
+    secrets: inherit

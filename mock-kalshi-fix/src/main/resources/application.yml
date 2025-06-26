@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/kalshi_mock
+    username: kalshi
+    password: kalshi_dev_password
+    driver-class-name: org.postgresql.Driver
+  
+  sql:
+    init:
+      mode: never  # Schema is initialized by Docker or manually
+      
+server:
+  port: 9090
+
+logging:
+  level:
+    com.kalshi.mock: DEBUG
+    org.springframework.jdbc: DEBUG

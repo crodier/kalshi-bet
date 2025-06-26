@@ -1,0 +1,20 @@
+---
+name: Issue Comment
+run-name: 💬 Comment ${{ github.event.issue.user.login }}
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+  pull-requests: write
+  deployments: write
+  actions: write
+
+jobs:
+  push:
+    uses: fanatics-gaming/actions/.github/workflows/app_issue_comment.yaml@v1
+    secrets: inherit

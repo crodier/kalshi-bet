@@ -1,0 +1,32 @@
+package com.kalshi.mock.model;
+
+import com.fbg.api.market.KalshiSide;
+import com.kalshi.mock.dto.OrderbookResponse;
+import org.junit.jupiter.api.Test;
+
+public class DebugOrderBookTest {
+    
+    @Test
+    void debugBuyNoOrders() {
+        ConcurrentOrderBook orderBook = new ConcurrentOrderBook("TEST");
+        
+        // Add Buy NO orders
+        System.out.println("Adding Buy NO orders:");
+        orderBook.addOrder(new OrderBookEntry("1", "user1", KalshiSide.no, "buy", 40, 100, System.nanoTime()));
+        orderBook.addOrder(new OrderBookEntry("2", "user2", KalshiSide.no, "buy", 45, 200, System.nanoTime()));
+        orderBook.addOrder(new OrderBookEntry("3", "user3", KalshiSide.no, "buy", 50, 150, System.nanoTime()));
+        
+        // Get orderbook
+        OrderbookResponse.OrderbookData data = orderBook.getOrderbookSnapshotKalshiFormat(10);
+        
+        System.out.println("\nYES side:");
+        for (var level : data.getYes()) {
+            System.out.println("  Price: " + level.get(0) + ", Qty: " + level.get(1));
+        }
+        
+        System.out.println("\nNO side:");
+        for (var level : data.getNo()) {
+            System.out.println("  Price: " + level.get(0) + ", Qty: " + level.get(1));
+        }
+    }
+}

@@ -1,0 +1,160 @@
+# Build directories
+target/
+build/
+.gradle/
+dist/
+dist-ssr/
+out/
+bin/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output
+
+# Production
+/build
+
+# IDE files
+## IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea_modules/
+
+## Eclipse
+.project
+.classpath
+.settings/
+.apt_generated
+.apt_generated_test
+.factorypath
+.springBeans
+.sts4-cache
+
+## NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+nb-configuration.xml
+
+## VS Code
+.vscode/
+
+# Java/Kotlin specific
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+.kotlin/
+*.klib
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+.~*
+*.bak
+
+# Application specific
+*.db
+postgres_data/
+:memory:
+env-local-dev
+kalshi-fix.key
+HELP.md
+
+# Package files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Editor directories and files
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Misc
+.lsp/
+.clj-kondo/
+/scripts
+test.html
+demo.html
+
+# Package locks (uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Gradle
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+.gradletasknamecache
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Ignore quickfixj subdirectory git tracking
+# quickfixj/ is managed as a separate git submodule

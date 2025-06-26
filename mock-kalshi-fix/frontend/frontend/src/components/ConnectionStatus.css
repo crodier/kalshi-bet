@@ -1,0 +1,77 @@
+.connection-status {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  animation: slideDown 0.3s ease-out;
+}
+
+.connection-status.warning {
+  background-color: #ff9800;
+  color: white;
+}
+
+.connection-status.error {
+  background-color: #f44336;
+  color: white;
+}
+
+.connection-status-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  gap: 8px;
+}
+
+.connection-status-icon {
+  font-size: 18px;
+  animation: pulse 2s infinite;
+}
+
+.connection-status-error {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-left: 8px;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Adjust app header when banner is shown */
+.app.disconnected .app-header {
+  margin-top: 48px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .connection-status-content {
+    font-size: 12px;
+    padding: 10px 16px;
+  }
+  
+  .connection-status-icon {
+    font-size: 16px;
+  }
+}

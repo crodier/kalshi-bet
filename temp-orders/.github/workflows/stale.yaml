@@ -1,0 +1,18 @@
+name: Stale PR Checker
+
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+  pull-requests: write
+  id-token: write
+  contents: write # only for delete-branch option
+  actions: write # only for delete-branch option
+
+jobs:
+  stale:
+    uses: fanatics-gaming/actions/.github/workflows/stale.yaml@v1
+    secrets: inherit

@@ -1,0 +1,1 @@
+ALTER TABLE order_projection ADD COLUMN side VARCHAR(8) NOT NULL DEFAULT 'BUY'; 

@@ -1,0 +1,15 @@
+### Get orderbook for market
+GET http://localhost:9090/trade-api/v2/markets/DUMMY_TEST/orderbook
+Accept: application/json
+
+### Get orderbook with specific depth
+GET http://localhost:9090/trade-api/v2/markets/DUMMY_TEST/orderbook?depth=10
+Accept: application/json
+
+### Get orderbook for other test markets
+GET http://localhost:9090/trade-api/v2/markets/TRUMPWIN-24NOV05/orderbook
+Accept: application/json
+
+### Get orderbook for test market (if created via catalog)
+GET http://localhost:9090/trade-api/v2/markets/TESTMARKET1/orderbook
+Accept: application/json

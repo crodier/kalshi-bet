@@ -1,0 +1,25 @@
+ # How to: https://betfanatics.atlassian.net/wiki/spaces/Platform/pages/868155708/How-To+Manually+Rollback+a+service+version
+---
+name: Rollback
+run-name: 🚀 Rollback ${{ github.ref }} to ${{ inputs.environment }}
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: The environment to rollback (test-1, cert-1, cert-1ma...)
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+
+jobs:
+
+  rollback:
+    name: 💥 Rollback - ${{ inputs.environment }}
+    uses: fanatics-gaming/actions/.github/workflows/app_rollback.yaml@v1
+    secrets: inherit
+    with:
+      environment: ${{ inputs.environment }}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalshi FIX API JS Example</title>
+</head>
+<body>
+    <h1>Kalshi FIX API JS Example</h1>
+    <div id="output"></div>
+    
+    <script src="build/kotlin-webpack/js/developmentExecutable/kalshi-fix-api.js"></script>
+    <script>
+        // Access the compiled Kotlin code
+        const kalshiApi = window['com.fbg.fix:kalshi-fix-api'];
+        
+        // Create instances of domain classes
+        const decimal = new kalshiApi.com.fbg.api.common.BetDecimal("123.45");
+        const date = new kalshiApi.com.fbg.api.common.BetLocalDate("2025-01-24");
+        const dateTime = new kalshiApi.com.fbg.api.common.BetLocalDateTime("2025-01-24T10:30:00");
+        
+        // Display the values
+        const output = document.getElementById('output');
+        output.innerHTML = `
+            <p>BetDecimal value: ${decimal.value_1}</p>
+            <p>BetLocalDate value: ${date.value_1}</p>
+            <p>BetLocalDateTime value: ${dateTime.value_1}</p>
+            <p>BetLocalDateTime date: ${dateTime.get_date_wokkxj_k$()}</p>
+            <p>BetLocalDateTime time: ${dateTime.get_time_wouyhi_k$()}</p>
+        `;
+    </script>
+</body>
+</html>

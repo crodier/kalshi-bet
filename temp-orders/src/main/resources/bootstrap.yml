@@ -1,0 +1,18 @@
+spring:
+  cloud:
+    kubernetes:
+      reload:
+        enabled: false
+        # If you do enable this, make sure that you are in your own namespace and have mode: event,
+        # otherwise you will see high memory usage
+        # mode: event
+      config:
+        enabled: false
+      secrets:
+        enabled: true
+        enable-api: true
+        sources:
+        - name: keys
+          namespace: fbg
+        - name: kafka-sasl
+          namespace: fbg

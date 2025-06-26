@@ -1,0 +1,19 @@
+### Get all positions
+GET http://localhost:9090/trade-api/v2/portfolio/positions
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get account balance
+GET http://localhost:9090/trade-api/v2/portfolio/balance
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get settlements
+GET http://localhost:9090/trade-api/v2/portfolio/settlements
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get settlements with ticker filter
+GET http://localhost:9090/trade-api/v2/portfolio/settlements?ticker=DUMMY_TEST
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get settlements with limit
+GET http://localhost:9090/trade-api/v2/portfolio/settlements?limit=10
+KALSHI-ACCESS-KEY: demo-api-key

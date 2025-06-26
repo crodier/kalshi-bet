@@ -1,0 +1,110 @@
+spring:
+  application:
+    name: exchange-order-api
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  servlet:
+    multipart:
+      max-file-size: 5MB
+  security:
+    oauth2:
+      # This section is used for secured REST services
+      resourceserver:
+        jwt:
+          jwk-set-uri: https://cognito-idp.us-west-2.amazonaws.com/${aws.cognito.userpool.id}/.well-known/jwks.json
+      # The authorizationserver is needed in order to connect to the Cognito token provider to
+      # obtain a JWT access token.  This is used for:
+      # ** GrpcClientHelper - to manually get a token
+      # ** OpenApiConfig - to enable the OpenApi web page to authorize requests
+      authorizationserver:
+        endpoint:
+          token-uri: https://fbg-user-pool-fbg-dev-1.auth.us-west-2.amazoncognito.com/oauth2/token
+      # This section is used for both REST clients and gRPC clients to obtain a client JWT token
+      client:
+        registration:
+          my-client:
+            provider: spring
+            authorization-grant-type: client_credentials
+            # In the run configuration for this project, replace the
+            # KICKSTARTER_OAUTH2_CLIENT_ID and KICKSTARTER_OAUTH2_CLIENT_SECRET values with those
+            # stored in these AWS sportsbook-dev secrets:
+            # /fbg/microservice-kickstarter/aws.cognito.client.id
+            # /fbg/microservice-kickstarter/aws.cognito.client.secret
+            client-id: ${KICKSTARTER_OAUTH2_CLIENT_ID}
+            client-secret: ${KICKSTARTER_OAUTH2_CLIENT_SECRET}
+        provider:
+          spring:
+            issuer-uri: https://cognito-idp.us-west-2.amazonaws.com/${aws.cognito.userpool.id}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  threads:
+    virtual:
+      enabled: true
+  main:
+    banner-mode: "off"
+
+server:
+  shutdown: graceful
+  servlet:
+    context-path: /order
+management:
+  endpoints:
+    web:
+      exposure:
+        include: info,refresh,keepalive,health,env,restart,metrics,loggers
+  endpoint:
+    restart:
+      enabled: true
+    health:
+      enabled: true
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include:
+            - livenessState
+            - appLiveness
+        readiness:
+          include:
+            - readinessState
+            - appReadiness
+      show-details: always
+  health:
+    defaults:
+      enabled: false
+  metrics:
+    export:
+      statsd:
+        host: ${STATSD_HOST}
+        port: ${STATSD_PORT}
+springdoc:
+  # This property is not needed if auth is not required for the apis
+  oAuthFlow:
+    tokenUrl: https://fbg-user-pool-fbg-dev-1.auth.us-west-2.amazoncognito.com/oauth2/token
+api:
+  hub:
+    url: https://apihub.int.fanatics.bet
+
+# All application-specific properties go here
+exchange:
+  order:
+    my-prop-value: foobar
+    kafka-config:
+      # Topic Naming Convention Guideline
+      # https://betfanatics.atlassian.net/wiki/spaces/CAT/pages/137068612/ADR+Kafka+Topic+Naming+Conventions
+      # You will also need to define these topics in the deploy directory, topics.yaml
+      topics:
+        backorder-topic:
+          name: cloud.exchange.fct.inventory-backorder.0
+
+quickfixj:
+  client:
+    enabled: false
+    config: classpath:quickfixj-prod.cfg
+    
+pekko:
+  config: classpath:application.conf

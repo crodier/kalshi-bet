@@ -1,0 +1,50 @@
+### Get all series
+GET http://localhost:9090/trade-api/v2/series
+Accept: application/json
+
+### Get all series with pagination
+GET http://localhost:9090/trade-api/v2/series?limit=10&cursor=KXECLIPSE
+Accept: application/json
+
+### Get all series by category
+GET http://localhost:9090/trade-api/v2/series?category=Politics
+Accept: application/json
+
+### Get specific series
+GET http://localhost:9090/trade-api/v2/series/TESTSERIES1
+Accept: application/json
+
+### Create new series
+POST http://localhost:9090/trade-api/v2/series
+Content-Type: application/json
+
+{
+  "ticker": "TESTSERIES1",
+  "frequency": "one_off",
+  "title": "Test Series for Development",
+  "category": "Technology",
+  "tags": ["test", "development", "mock"],
+  "settlement_sources": ["Manual"],
+  "contract_url": "https://example.com/test",
+  "fee_type": "quadratic",
+  "fee_multiplier": 0
+}
+
+### Update series
+PUT http://localhost:9090/trade-api/v2/series/TESTSERIES1
+Content-Type: application/json
+
+{
+  "ticker": "TESTSERIES1",
+  "frequency": "one_off",
+  "title": "Updated Test Series for Development",
+  "category": "Technology",
+  "tags": ["test", "development", "mock", "updated"],
+  "settlement_sources": ["Manual", "API"],
+  "contract_url": "https://example.com/test-updated",
+  "fee_type": "quadratic",
+  "fee_multiplier": 0
+}
+
+### Delete series
+DELETE http://localhost:9090/trade-api/v2/series/TESTSERIES1

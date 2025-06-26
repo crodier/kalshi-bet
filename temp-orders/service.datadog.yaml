@@ -1,0 +1,32 @@
+---
+# See the following document for descriptions of fields
+# https://betfanatics.atlassian.net/wiki/spaces/TE/pages/426509882/How-To+Create+a+Service+Definition+in+Datadog#Service-Definition-Fields
+schema-version: v2.1
+dd-service: exchange-order-api
+team: exchange
+description: This is my test service that does many awesome things.
+tier: '1'
+lifecycle: production
+contacts:
+  - name: Support Email
+    type: email
+    contact: support@myteam.com
+  - name: Support Slack
+    type: slack
+    contact: https://betfanatics.enterprise.slack.com/archives/C08SNFKBFPA
+links:
+  - name: Source Code
+    type: repo
+    url: https://github.com/fanatics-gaming/exchange-order-api
+  - name: Dashboard
+    type: dashboard
+    url: https://app.datadoghq.com/dashboard/my-team-dd-dashboard
+  - name: Runbook
+    type: runbook
+    url: "https://betfanatics.atlassian.net/wiki/home"
+  - name: Jira
+    type: other
+    url: https://betfanatics.atlassian.net/browse/FANEXC
+tags:
+  - domain:exchange
+  - archetype:api

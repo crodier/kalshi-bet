@@ -1,0 +1,62 @@
+### Get all events
+GET http://localhost:9090/trade-api/v2/events
+Accept: application/json
+
+### Get events with pagination
+GET http://localhost:9090/trade-api/v2/events?limit=5&cursor=TESTEVENT1
+Accept: application/json
+
+### Get events by series
+GET http://localhost:9090/trade-api/v2/events?series_ticker=TESTSERIES1
+Accept: application/json
+
+### Get events by status
+GET http://localhost:9090/trade-api/v2/events?status=open
+Accept: application/json
+
+### Get events with nested markets
+GET http://localhost:9090/trade-api/v2/events?with_nested_markets=true
+Accept: application/json
+
+### Get specific event
+GET http://localhost:9090/trade-api/v2/events/TESTEVENT1
+Accept: application/json
+
+### Create new event (requires series to exist first)
+POST http://localhost:9090/trade-api/v2/events
+Content-Type: application/json
+
+{
+  "event_ticker": "TESTEVENT1",
+  "series_ticker": "TESTSERIES1",
+  "title": "Test Event 1",
+  "sub_title": "A test event for development",
+  "category": "Technology",
+  "status": "open",
+  "mutually_exclusive": false,
+  "yes_sub_title": "Yes outcome",
+  "no_sub_title": "No outcome",
+  "response_price_units": "cents",
+  "expected_expiration_time": 1735689600000
+}
+
+### Update event
+PUT http://localhost:9090/trade-api/v2/events/TESTEVENT1
+Content-Type: application/json
+
+{
+  "event_ticker": "TESTEVENT1",
+  "series_ticker": "TESTSERIES1",
+  "title": "Updated Test Event 1",
+  "sub_title": "An updated test event for development",
+  "category": "Technology",
+  "status": "open",
+  "mutually_exclusive": true,
+  "yes_sub_title": "Yes outcome updated",
+  "no_sub_title": "No outcome updated",
+  "response_price_units": "cents",
+  "expected_expiration_time": 1735689600000
+}
+
+### Delete event
+DELETE http://localhost:9090/trade-api/v2/events/TESTEVENT1

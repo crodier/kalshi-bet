@@ -1,0 +1,120 @@
+# this comment is from the push.yaml file that was deleted:
+#An example of what could work though is something like a starter dashboard for services that's generated via terraform that is a part of the service cookie cutter. Where you develop the prototype manually turn it into terraform and then teams get it for free.
+---
+name: Build & Deploy
+run-name: ➡️ ${{ github.ref }} - ${{ github.event_name }} (${{ github.event.action }})
+
+on:
+  push:
+    branches: [main]
+    tags-ignore:
+      - '*-*'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  id-token: write
+  contents: write
+  packages: read
+  pull-requests: read
+
+jobs:
+
+  push:
+    uses: fanatics-gaming/actions/.github/workflows/app_push.yaml@v1
+    secrets: inherit
+    with:
+      start-deploy: false
+      java-version: 21
+
+  dev:
+    name: 🚀 Deploy - dev
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main'
+    needs: [push]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - dev-1
+    with:
+      environment: ${{ matrix.environment }}
+      testkube-tests: |
+        exchange-order-api-curl
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - dev (${{ matrix.environment }})
+
+  test:
+    name: 🚀 Deploy - test
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [push]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - test-1
+    with:
+      environment: ${{ matrix.environment }}
+      testkube-tests: |
+        exchange-order-api-curl
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - test (${{ matrix.environment }})
+
+  inf-dev:
+    name: 🚀 Deploy - inf-dev
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [push, test]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - inf-dev-1
+    with:
+      environment: ${{ matrix.environment }}
+      testkube-tests: |
+        exchange-order-api-curl
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - inf-dev (${{ matrix.environment }})
+
+  cert:
+    name: 🚀 Deploy - cert
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [push, test]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - cert-1
+    with:
+      environment: ${{ matrix.environment }}
+      testkube-tests: |
+        exchange-order-api-curl
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - cert (${{ matrix.environment }})
+
+  prod:
+    name: 🚀 Deploy - prod
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [push, cert]
+    uses: fanatics-gaming/actions/.github/workflows/app_deploy_v2.yaml@v1
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - prod-1
+    with:
+      environment: ${{ matrix.environment }}
+      testkube-tests: |
+        exchange-order-api-curl
+      image-tag: ${{ needs.push.outputs.image-tag }}
+      dd-github-job-name: 🚀 Deploy - prod (${{ matrix.environment }})

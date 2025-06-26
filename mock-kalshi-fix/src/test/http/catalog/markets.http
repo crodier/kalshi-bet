@@ -1,0 +1,75 @@
+### Get all markets
+GET http://localhost:9090/trade-api/v2/markets
+Accept: application/json
+
+### Get markets with pagination
+GET http://localhost:9090/trade-api/v2/markets?limit=10&cursor=TESTMARKET1
+Accept: application/json
+
+### Get markets by event
+GET http://localhost:9090/trade-api/v2/markets?event_ticker=TESTEVENT1
+Accept: application/json
+
+### Get markets by series
+GET http://localhost:9090/trade-api/v2/markets?series_ticker=TESTSERIES1
+Accept: application/json
+
+### Get markets by status
+GET http://localhost:9090/trade-api/v2/markets?status=open
+Accept: application/json
+
+### Get markets by multiple tickers
+GET http://localhost:9090/trade-api/v2/markets?tickers=TESTMARKET1,TESTMARKET2
+Accept: application/json
+
+### Get markets with time filters
+GET http://localhost:9090/trade-api/v2/markets?min_close_ts=1735689600000&max_close_ts=1767225600000
+Accept: application/json
+
+### Get specific market
+GET http://localhost:9090/trade-api/v2/markets/TESTMARKET1
+Accept: application/json
+
+### Create new market (requires event to exist first)
+POST http://localhost:9090/trade-api/v2/markets
+Content-Type: application/json
+
+{
+  "ticker": "TESTMARKET1",
+  "event_ticker": "TESTEVENT1",
+  "market_type": "binary",
+  "title": "Test Market 1",
+  "subtitle": "Will the test pass?",
+  "open_time": 1735689600000,
+  "close_time": 1767225600000,
+  "status": "open",
+  "notional_value": 100,
+  "rules_primary": "Market resolves to Yes if the test passes, No otherwise.",
+  "strike_type": "binary",
+  "response_price_units": "cents",
+  "functional_print_id": "test-market-1"
+}
+
+### Update market
+PUT http://localhost:9090/trade-api/v2/markets/TESTMARKET1
+Content-Type: application/json
+
+{
+  "ticker": "TESTMARKET1",
+  "event_ticker": "TESTEVENT1",
+  "market_type": "binary",
+  "title": "Updated Test Market 1",
+  "subtitle": "Will the updated test pass?",
+  "open_time": 1735689600000,
+  "close_time": 1767225600000,
+  "status": "open",
+  "notional_value": 100,
+  "rules_primary": "Market resolves to Yes if the updated test passes, No otherwise.",
+  "rules_secondary": "Additional test criteria may apply.",
+  "strike_type": "binary",
+  "response_price_units": "cents",
+  "functional_print_id": "test-market-1-updated"
+}
+
+### Delete market
+DELETE http://localhost:9090/trade-api/v2/markets/TESTMARKET1

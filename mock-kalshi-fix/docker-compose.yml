@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: kalshi-postgres
+    environment:
+      POSTGRES_DB: kalshi_mock
+      POSTGRES_USER: kalshi
+      POSTGRES_PASSWORD: kalshi_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - kalshi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kalshi -d kalshi_mock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kalshi-app:
+    build: .
+    container_name: kalshi-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kalshi_mock
+      SPRING_DATASOURCE_USERNAME: kalshi
+      SPRING_DATASOURCE_PASSWORD: kalshi_dev_password
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+    ports:
+      - "9090:9090"
+    networks:
+      - kalshi-network
+
+volumes:
+  postgres_data:
+
+networks:
+  kalshi-network:
+    driver: bridge

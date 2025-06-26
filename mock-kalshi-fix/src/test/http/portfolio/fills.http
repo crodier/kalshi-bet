@@ -1,0 +1,19 @@
+### Get all fills
+GET http://localhost:9090/trade-api/v2/portfolio/fills
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get fills with ticker filter
+GET http://localhost:9090/trade-api/v2/portfolio/fills?ticker=DUMMY_TEST
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get fills with order ID filter
+GET http://localhost:9090/trade-api/v2/portfolio/fills?order_id=ORD-1001
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get fills with limit
+GET http://localhost:9090/trade-api/v2/portfolio/fills?limit=5
+KALSHI-ACCESS-KEY: demo-api-key
+
+### Get fills with multiple filters
+GET http://localhost:9090/trade-api/v2/portfolio/fills?ticker=DUMMY_TEST&limit=10
+KALSHI-ACCESS-KEY: demo-api-key

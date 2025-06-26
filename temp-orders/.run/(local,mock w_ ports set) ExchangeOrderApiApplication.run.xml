@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="(local,mock w/ ports set) ExchangeOrderApiApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ACTIVE_PROFILES" value="local,mock" />
+    <envs>
+      <env name="GRPC_SERVER_POR" value="9090" />
+      <env name="SERVER_PORT" value="8080" />
+      <env name="PEKKO_HOST" value="127.0.0.1" />
+      <env name="PEKKO_PORT" value="2551" />
+    </envs>
+    <module name="exchange-order-api" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.betfanatics.exchange.order.ExchangeOrderApiApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

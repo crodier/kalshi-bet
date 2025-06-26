@@ -1,0 +1,87 @@
+.orderbook {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.orderbook h3 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.orderbook-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.orderbook-side {
+  background: white;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.orderbook-side h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #555;
+}
+
+.orderbook-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 8px 12px;
+  background: #e9ecef;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.orderbook-levels {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.level {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.level:hover {
+  background: #f8f9fa;
+}
+
+.bid .price {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.ask .price {
+  color: #d32f2f;
+  font-weight: 500;
+}
+
+.quantity {
+  text-align: right;
+  color: #666;
+}
+
+.no-orders {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+.orderbook-empty {
+  padding: 60px;
+  text-align: center;
+  color: #666;
+  font-size: 16px;
+}
