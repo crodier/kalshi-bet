@@ -118,3 +118,33 @@ INSERT INTO orders (
      'limit', 500, 0, 500, 43, NULL, 'open', 'GTC',
      1700010000000, 1700010000000, NULL)
 ON CONFLICT (order_id) DO NOTHING;
+
+-- Insert MARKET_MAKER market for automated market making
+INSERT INTO series (ticker, title, category, contract_url, frequency)
+VALUES 
+    ('MM', 'Market Maker Test Series', 'Test', 'https://kalshi.com/series/MM', 'single')
+ON CONFLICT (ticker) DO NOTHING;
+
+INSERT INTO events (event_ticker, series_ticker, title, category, sub_title, status, mutually_exclusive, expected_expiration_time)
+VALUES
+    ('MM_TEST', 'MM', 'Market Maker Test Event', 'Test', 'Automated market making test', 'open', true, 2000000000000)
+ON CONFLICT (event_ticker) DO NOTHING;
+
+INSERT INTO markets (
+    ticker, event_ticker, market_type, title, subtitle,
+    open_time, close_time, expected_expiration_time, expiration_time,
+    status, yes_bid, yes_ask, no_bid, no_ask,
+    last_price, volume, volume_24h, liquidity, open_interest,
+    notional_value, risk_limit_cents,
+    strike_type, floor_strike, cap_strike,
+    rules_primary, rules_secondary, response_price_units, functional_print_id
+) VALUES
+    ('MARKET_MAKER', 'MM_TEST', 'binary',
+     'Market Maker Test Market', 'Automated market making',
+     1700000000000, 2000000000000, 2000000000000, NULL,
+     'open', 45, 55, 45, 55,
+     50, 0, 0, 0, 0,
+     100, 100000,
+     'binary', NULL, NULL,
+     'Market maker test market', NULL, 'cents', NULL)
+ON CONFLICT (ticker) DO NOTHING;
