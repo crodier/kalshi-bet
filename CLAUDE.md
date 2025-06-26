@@ -48,6 +48,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Every 10 seconds it should move this market up and down in the 33 cent to 67 cent range
 - This "market" should be created by the mock server as part of the bootstrap, in SQL, to the postgres docker
 
+## Current Status (2025-06-26)
+
+### Working State ✅
+- Mock Kalshi FIX server is running and functional on port 9090
+- Frontend displays markets and orderbooks correctly with both YES and NO sides
+- Market maker module is actively providing liquidity on MARKET_MAKER market (port 8888)
+- WebSocket connections for orderbook updates are working
+- AG Grid integration is functional (v34 with module registration)
+- Added NO side orders to all test markets in data.sql
+
+### Known Issues ⚠️
+- Order updates are not being pushed to the Orders panel in AG Grid (WebSocket receives data but grid doesn't update)
+- Need to implement proper dual WebSocket architecture (market data vs internal orders)
+
+### Next Steps
+- Fix order updates not appearing in AG Grid Orders panel
+- Complete temp-orders FIX integration
+
+**Commit Hash: ec60e45** - System in good working state but orders panel needs fixing
+
 ## in-progress:  Second focus - have 'temp-orders' with a REST API
 - The focus of our deliverable is to build temp-orders, the FIX system
 - The mock server is running and crossing orders, and should be started and used for integration testing

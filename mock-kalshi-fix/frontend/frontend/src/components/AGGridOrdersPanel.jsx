@@ -47,28 +47,27 @@ const AGGridOrdersPanel = ({ selectedMarket }) => {
       field: 'side', 
       width: 60,
       cellRenderer: (params) => {
-        const side = params.value?.toUpperCase();
-        return `<span class="side-${params.value}">${side}</span>`;
-      }
+        return params.value?.toUpperCase();
+      },
+      cellClass: (params) => `side-${params.value}`
     },
     { 
       headerName: 'Action', 
       field: 'action', 
       width: 70,
       cellRenderer: (params) => {
-        const action = params.value?.toUpperCase();
-        return `<span class="action-${params.value}">${action}</span>`;
-      }
+        return params.value?.toUpperCase();
+      },
+      cellClass: (params) => `action-${params.value}`
     },
     { 
       headerName: 'Status', 
       field: 'status', 
       width: 100,
       cellRenderer: (params) => {
-        const status = params.value?.replace('_', ' ').toUpperCase();
-        const statusClass = params.value?.replace('_', '-');
-        return `<span class="status-${statusClass}">${status}</span>`;
-      }
+        return params.value?.replace('_', ' ').toUpperCase();
+      },
+      cellClass: (params) => `status-${params.value?.replace('_', '-')}`
     },
     { 
       headerName: 'Type', 
@@ -87,10 +86,11 @@ const AGGridOrdersPanel = ({ selectedMarket }) => {
       width: 70,
       type: 'numericColumn',
       cellRenderer: (params) => {
+        return params.value || 0;
+      },
+      cellClass: (params) => {
         const filled = params.value || 0;
-        const original = params.data.original_quantity || 0;
-        const className = filled > 0 ? 'qty-partial' : '';
-        return `<span class="${className}">${filled}</span>`;
+        return filled > 0 ? 'qty-partial' : '';
       }
     },
     { 

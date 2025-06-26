@@ -12,6 +12,7 @@ import com.betfanatics.exchange.order.health.FixHealthIndicator
 import com.betfanatics.exchange.order.service.FixErrorService
 import com.betfanatics.exchange.order.service.ClOrdIdMappingService
 import com.betfanatics.exchange.order.service.ExecutionReportEnrichmentService
+import com.betfanatics.exchange.order.test.FixMessageInterceptorRegistry
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.security.PrivateKey
@@ -60,6 +61,9 @@ class QuickfixJApplication(
         val msgType = try { message.header.getString(MsgType.FIELD) } catch (e: Exception) { "UNKNOWN" }
         FixMessageLogger.logAdminMessage(message, sessionId.toString(), "OUTGOING")
         
+        // Notify interceptors for testing
+        FixMessageInterceptorRegistry.notifyAdminMessage(message, sessionId, msgType, "OUTGOING")
+        
         try {
             if (MsgType.LOGON == msgType) {
                 val sendingTime = message.header.getString(SendingTime.FIELD)
@@ -100,7 +104,12 @@ class QuickfixJApplication(
     override fun toApp(message: Message, sessionId: SessionID) {
         // Extract order ID for correlation
         val orderId = try { message.getString(ClOrdID.FIELD) } catch (e: Exception) { null }
+        val msgType = try { message.header.getString(MsgType.FIELD) } catch (e: Exception) { "UNKNOWN" }
+        
         FixMessageLogger.logOutgoingFixMessage(message, orderId, sessionId.toString())
+        
+        // Notify interceptors for testing
+        FixMessageInterceptorRegistry.notifyOutgoingMessage(message, sessionId, msgType, orderId)
         
         log.info("HANDOFF_TO_FIX: from=QuickfixJApplication to=FixProtocol sessionId={} orderId={}", 
             sessionId, orderId ?: "unknown")
@@ -119,6 +128,9 @@ class QuickfixJApplication(
                     FixMessageLogger.logAdminMessage(message, sessionId.toString(), "INCOMING")
                 }
             }
+            
+            // Notify interceptors for testing
+            FixMessageInterceptorRegistry.notifyAdminMessage(message, sessionId, msgType, "INCOMING")
             
             val seqNum = message.header.getInt(MsgSeqNum.FIELD)
             val possDupFlag = if (message.header.isSetField(PossDupFlag.FIELD)) 
@@ -159,7 +171,12 @@ class QuickfixJApplication(
         // Extract ClOrdID and lookup actual orderId
         val clOrdId = try { message.getString(ClOrdID.FIELD) } catch (e: Exception) { null }
         val orderId = clOrdId?.let { clOrdIdMappingService.getOrderIdByClOrdId(it) }
+        val msgType = try { message.header.getString(MsgType.FIELD) } catch (e: Exception) { "UNKNOWN" }
+        
         FixMessageLogger.logIncomingFixMessage(message, orderId, sessionId.toString())
+        
+        // Notify interceptors for testing
+        FixMessageInterceptorRegistry.notifyIncomingMessage(message, sessionId, msgType, orderId)
         
         log.info("HANDOFF_FROM_FIX: from=FixProtocol to=QuickfixJApplication sessionId={} orderId={}", 
             sessionId, orderId ?: "unknown")
