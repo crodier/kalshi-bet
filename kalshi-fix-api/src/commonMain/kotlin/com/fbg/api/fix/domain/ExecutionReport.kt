@@ -10,7 +10,7 @@ import com.fbg.api.common.BetLocalDateTime
  */
 data class ExecutionReport(
     // Required Fields (FIX 5.0SP2)
-    val orderID: String,                    // Tag 37 - Unique identifier for Order
+    val orderID: String,                    // Tag 37 - Unique identifier for Order (from Exchange)
     val execID: String,                     // Tag 17 - Unique identifier for execution
     val execType: ExecutionType,            // Tag 150 - Describes the purpose of the ExecutionReport
     val ordStatus: OrderStatus,             // Tag 39 - Current status of order
@@ -18,14 +18,22 @@ data class ExecutionReport(
     val leavesQty: BetDecimal,              // Tag 151 - Quantity open for further execution
     val cumQty: BetDecimal,                 // Tag 14 - Total quantity filled
     
+    // Our Additional Required Fields
+    val betOrderId: String,                 // Our internal order ID (extracted from ClOrdID)
+    
+    // The original order that created this execution (only one will be set)
+    val newOrder: IncomingOrder.NewOrder? = null,       // If this execution is for a new order
+    val modifyOrder: IncomingOrder.ModifyOrder? = null, // If this execution is for a modify order
+    val cancelOrder: IncomingOrder.CancelOrder? = null, // If this execution is for a cancel order
+    
     // Conditional Required Fields
     val instrument: Instrument,             // Component - Instrument identification
     val lastQty: BetDecimal? = null,        // Tag 32 - Quantity of shares bought/sold
     val lastPx: BetDecimal? = null,         // Tag 31 - Price of this execution
     
     // Optional Common Fields
-    val clOrdID: String? = null,            // Tag 11 - Client Order ID
-    val origClOrdID: String? = null,        // Tag 41 - Original Client Order ID
+    val clOrdID: String? = null,            // Tag 11 - Client Order ID (FBG_betOrderId format)
+    val origClOrdID: String? = null,        // Tag 41 - Original Client Order ID (for cancel/replace)
     val execRefID: String? = null,          // Tag 19 - Reference identifier for execution
     val execTransType: ExecTransType? = null, // Tag 20 - Transaction type
     val orderQty: BetDecimal? = null,       // Tag 38 - Quantity ordered

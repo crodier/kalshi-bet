@@ -1,0 +1,182 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: kalshi-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - kalshi-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kalshi-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - kalshi-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: kalshi-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - kalshi-network
+
+  mock-exchange-postgres:
+    image: postgres:15-alpine
+    container_name: kalshi-mock-exchange-postgres
+    environment:
+      POSTGRES_DB: kalshi_mock
+      POSTGRES_USER: kalshi
+      POSTGRES_PASSWORD: kalshi_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - mock_exchange_postgres_data:/var/lib/postgresql/data
+      - ./mock-kalshi-fix/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./mock-kalshi-fix/src/main/resources/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+    networks:
+      - kalshi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kalshi -d kalshi_mock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mock-kalshi-fix:
+    build:
+      context: ./mock-kalshi-fix
+      dockerfile: Dockerfile
+    container_name: kalshi-mock-kalshi-fix
+    depends_on:
+      mock-exchange-postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://mock-exchange-postgres:5432/kalshi_mock
+      SPRING_DATASOURCE_USERNAME: kalshi
+      SPRING_DATASOURCE_PASSWORD: kalshi_dev_password
+    ports:
+      - "9090:9090"
+      - "9878:9878"  # FIX port
+    networks:
+      - kalshi-network
+    restart: unless-stopped
+
+  market-data-server:
+    build:
+      context: ./market-data-server
+      dockerfile: Dockerfile
+    container_name: kalshi-market-data-server
+    depends_on:
+      - kafka
+      - redis
+      - mock-kalshi-fix
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MOCK_KALSHI_REST_URL: http://mock-kalshi-fix:9090
+      MOCK_KALSHI_WEBSOCKET_URL: ws://mock-kalshi-fix:9090/trade-api/ws/v2
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    ports:
+      - "8084:8084"
+    networks:
+      - kalshi-network
+    restart: unless-stopped
+
+  order-book-rebuilder:
+    build:
+      context: ./order-book-rebuilder
+      dockerfile: Dockerfile
+    container_name: kalshi-order-book-rebuilder
+    depends_on:
+      - kafka
+      - market-data-server
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC_MARKET_DATA: MARKET-DATA-ALL
+    ports:
+      - "8085:8085"
+    networks:
+      - kalshi-network
+    restart: unless-stopped
+
+  market-maker:
+    build:
+      context: ./market-maker
+      dockerfile: Dockerfile
+    container_name: kalshi-market-maker
+    depends_on:
+      - mock-kalshi-fix
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      KALSHI_API_BASE_URL: http://mock-kalshi-fix:9090
+      MARKET_MAKER_INTERVAL_MS: 3000
+      MARKET_MAKER_TICKER: MARKET_MAKER
+      MARKET_MAKER_PRICE_MIN: 33
+      MARKET_MAKER_PRICE_MAX: 67
+      MARKET_MAKER_SPREAD: 10
+      MARKET_MAKER_QUANTITY: 100
+    ports:
+      - "8888:8888"
+    networks:
+      - kalshi-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./mock-kalshi-fix/frontend/frontend
+      dockerfile: Dockerfile
+    container_name: kalshi-frontend
+    depends_on:
+      - mock-kalshi-fix
+    ports:
+      - "8080:80"
+    networks:
+      - kalshi-network
+    restart: unless-stopped
+
+  market-data-admin:
+    build:
+      context: ./market-data-server/frontend
+      dockerfile: Dockerfile
+    container_name: kalshi-market-data-admin
+    depends_on:
+      - market-data-server
+    ports:
+      - "3000:80"
+    networks:
+      - kalshi-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  mock_exchange_postgres_data:
+
+networks:
+  kalshi-network:
+    external: true

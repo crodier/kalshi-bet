@@ -457,25 +457,39 @@ public class ConcurrentOrderBook {
             
             // Get current state
             Map<Integer, Integer> currentYesLevels = new TreeMap<>(Comparator.reverseOrder());
-            Map<Integer, Integer> currentNoLevels = new TreeMap<>();
+            Map<Integer, Integer> currentNoLevels = new TreeMap<>(Comparator.reverseOrder());
             
-            // Build current YES levels (Buy YES orders)
+            // Build current levels based on normalized order book structure
+            // All orders in bids are Buy orders (either Buy YES or converted Sell NO)
             for (Map.Entry<Integer, Queue<OrderBookEntry>> level : bids.entrySet()) {
+                int totalQuantity = 0;
                 for (OrderBookEntry order : level.getValue()) {
-                    if (order.getSide() == KalshiSide.yes && order.getAction().equals("buy")) {
-                        currentYesLevels.merge(order.getPrice(), order.getQuantity(), Integer::sum);
-                    }
+                    totalQuantity += order.getQuantity();
+                }
+                if (totalQuantity > 0) {
+                    // In our normalized format, bids represent Buy YES orders
+                    currentYesLevels.put(level.getKey(), totalQuantity);
                 }
             }
             
-            // Build current NO levels (Buy NO orders)
+            // All orders in asks are Sell orders (either Sell YES or converted Buy NO)
+            // But in Kalshi format, we show these as Buy NO orders
             for (Map.Entry<Integer, Queue<OrderBookEntry>> level : asks.entrySet()) {
+                int totalQuantity = 0;
                 for (OrderBookEntry order : level.getValue()) {
-                    if (order.getSide() == KalshiSide.no && order.getAction().equals("buy")) {
-                        currentNoLevels.merge(order.getPrice(), order.getQuantity(), Integer::sum);
-                    }
+                    totalQuantity += order.getQuantity();
+                }
+                if (totalQuantity > 0) {
+                    // Convert normalized Sell YES price to Buy NO price for display
+                    int noPrice = 100 - level.getKey();
+                    currentNoLevels.put(noPrice, totalQuantity);
                 }
             }
+            
+            log.debug("calculateDeltas for {}: current state - YES levels: {}, NO levels: {}", 
+                     marketTicker, currentYesLevels, currentNoLevels);
+            log.debug("calculateDeltas for {}: previous state - YES levels: {}, NO levels: {}", 
+                     marketTicker, previousYesLevels, previousNoLevels);
             
             // Calculate YES deltas
             Set<Integer> allYesPrices = new HashSet<>();
@@ -488,6 +502,8 @@ public class ConcurrentOrderBook {
                 
                 if (currentQty != previousQty) {
                     deltas.add(new PriceLevelDelta(price, currentQty - previousQty, "yes"));
+                    log.debug("YES delta at price {}: {} -> {} (delta: {})", 
+                             price, previousQty, currentQty, currentQty - previousQty);
                 }
             }
             
@@ -502,12 +518,17 @@ public class ConcurrentOrderBook {
                 
                 if (currentQty != previousQty) {
                     deltas.add(new PriceLevelDelta(price, currentQty - previousQty, "no"));
+                    log.debug("NO delta at price {}: {} -> {} (delta: {})", 
+                             price, previousQty, currentQty, currentQty - previousQty);
                 }
             }
             
             // Update previous state
             previousYesLevels = currentYesLevels;
             previousNoLevels = currentNoLevels;
+            
+            log.info("ConcurrentOrderBook.calculateDeltas for {}: currentYes={} levels, currentNo={} levels, deltas={}", 
+                     marketTicker, currentYesLevels.size(), currentNoLevels.size(), deltas.size());
             
             return deltas;
         } finally {

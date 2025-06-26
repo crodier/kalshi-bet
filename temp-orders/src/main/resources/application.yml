@@ -41,6 +41,16 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
   threads:
     virtual:
       enabled: true
@@ -55,7 +65,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: info,refresh,keepalive,health,env,restart,metrics,loggers
+        include: info,refresh,keepalive,health,env,restart,metrics,loggers,fixerrors
   endpoint:
     restart:
       enabled: true
@@ -93,13 +103,23 @@ api:
 exchange:
   order:
     my-prop-value: foobar
+    # Risk management configuration
+    risk-limits:
+      max-bet-amount: 100000.00  # $100,000 per bet
+      max-user-total-risk: 1000000.00  # $1,000,000 per user total risk
     kafka-config:
-      # Topic Naming Convention Guideline
+      # Topic Naming Convention Guideline  
       # https://betfanatics.atlassian.net/wiki/spaces/CAT/pages/137068612/ADR+Kafka+Topic+Naming+Conventions
       # You will also need to define these topics in the deploy directory, topics.yaml
       topics:
         backorder-topic:
           name: cloud.exchange.fct.inventory-backorder.0
+        fix-order-topic:
+          name: FIX-ORDER-${FIX_ENV:LOCAL}
+        fix-execution-topic:
+          name: FIX-EXECUTION-${FIX_ENV:LOCAL}
+        fix-error-topic:
+          name: FIX-ERROR-${FIX_ENV:LOCAL}
 
 quickfixj:
   client:

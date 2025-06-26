@@ -1,0 +1,103 @@
+.service-card {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 220px;
+  transition: border-color 0.3s ease;
+}
+
+.service-card.connected {
+  border-color: #28a745;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
+}
+
+.service-card.connecting {
+  border-color: #ffc107;
+  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.1);
+}
+
+.service-card.error,
+.service-card.disconnected {
+  border-color: #dc3545;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
+}
+
+.service-card.never-connected {
+  border-color: #6c757d;
+  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.1);
+}
+
+.service-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.status-icon {
+  font-size: 16px;
+}
+
+.service-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.service-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  min-height: 20px;
+}
+
+.metric-row.execution {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #f8f9fa;
+}
+
+.metric-label {
+  font-weight: 500;
+  color: #6c757d;
+  min-width: 80px;
+}
+
+.metric-value {
+  color: #495057;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  flex: 1;
+  margin-left: 8px;
+}
+
+.execution-text {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.metric-value.status-connected {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.metric-value.status-error {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.metric-value.status-connecting {
+  color: #ffc107;
+  font-weight: 600;
+}

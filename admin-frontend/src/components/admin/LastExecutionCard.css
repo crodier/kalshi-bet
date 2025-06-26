@@ -1,0 +1,69 @@
+.last-execution-card {
+  background: white;
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 220px;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
+}
+
+.execution-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.execution-icon {
+  font-size: 16px;
+}
+
+.execution-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.execution-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.execution-metrics .metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 20px;
+}
+
+.execution-metrics .metric-label {
+  font-weight: 500;
+  color: #6c757d;
+  min-width: 60px;
+}
+
+.execution-metrics .metric-value {
+  color: #495057;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  margin-left: 8px;
+}
+
+.no-execution {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+}
+
+.no-execution-text {
+  color: #6c757d;
+  font-style: italic;
+}

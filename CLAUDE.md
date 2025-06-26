@@ -10,6 +10,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ASK FOR CLARIFICATION If you are uncertain of any of thing within the document.
 - DO NOT edit more code than you have to.
 
+## Tool usage
+
+- Use playwright with JSON output to test frontends
+- After making front end changes, run playwright and get the output to confirm the changes worked before moving on
+- Use Junit and Spring integration with mocks to confirm back end changes work before moving on
+
 ## High Level Context
 - We are building a financial trading system for FIX Messaging and market data to Kalshi, which is a new Futures Exchange for Single Event Binary Options (event betting)
 - The market dynamics are in mock-kalshi-fix/MARKET_DYNAMICS.md.
@@ -33,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - temp-orders is a project which will connect to the mock server; it is not yet built
 - temp-orders can be started and connects via FIX to the Mock Server via FIX
 
-## First small task - create a Market Maker project in Java which uses REST
+## Done - First small task - create a Market Maker project in Java which uses REST
 - in the market-maker, make a spring boot app running on port 8888
 - the market maker should use the REST APIs to connect and provide liquidity
 - It should use one new market called MARKET_MAKER
@@ -42,21 +48,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Every 10 seconds it should move this market up and down in the 33 cent to 67 cent range
 - This "market" should be created by the mock server as part of the bootstrap, in SQL, to the postgres docker
 
-## Second focus - have 'temp-orders' with a REST API
+## in-progress:  Second focus - have 'temp-orders' with a REST API
 - The focus of our deliverable is to build temp-orders, the FIX system
 - The mock server is running and crossing orders, and should be started and used for integration testing
 - temp-orders needs its own REST API to place orders and trades.
 - The temp-orders REST API will use the NewOrder, CancelOrder, and ModifyOrder, and publish ExecutionReport messages
 - We need a translation system from REST to FIX, with two actors; one OrderManagementActor and one called EmsActor, using the Pekko system
 
-### OrderActor: Record orders to an order table in postgres
+### In-progress - OrderActor: Record orders to an order table in postgres
 - The OrderManagement actor needs to record the orders to postgres before it sends anything along
 - We will use the single node kafka and publish to a topic named like 'FIX-ORDER-<FIX_ENV>'
 - <FIX_ENV> comes from application.properties and will be LOCAL, DEV, or PROD
 - OrderActor needs to do a limit check against a hard coded $100,000 per bet, and $1,000,000 per user total risk
 - These levels must be configurable from application.properties values
 
-### EMSActor: Convert outgoing orders to FIX messages
+### In-progress - EMSActor: Convert outgoing orders to FIX messages
 - The Kalshi API PDF Defines FIX messaging for Kalshi which follows the Wall St standard - read it with command line tools (pdf to text)
 - The quickfixj project has added the extended fields already into the Quickfix system, and this jar is published to Maven
 - The Pekko event storage is used for this

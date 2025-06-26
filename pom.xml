@@ -34,6 +34,11 @@
         
         <!-- Market Maker -->
         <module>market-maker</module>
+
+        <!-- we subscribe on one websocket but publish it to many -->
+        <!-- interesting little design, needs to scale way up -->
+        <module>market-data-server</module>
+        <module>order-book-rebuilder</module>
     </modules>
 
     <dependencyManagement>

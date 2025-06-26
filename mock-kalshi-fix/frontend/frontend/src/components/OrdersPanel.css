@@ -1,0 +1,188 @@
+.orders-panel {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f9f9f9;
+}
+
+.orders-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.orders-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.2em;
+}
+
+.orders-stats {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.orders-stats .stat {
+  font-size: 0.9em;
+  padding: 4px 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  color: #495057;
+  font-weight: 500;
+}
+
+.connection-status {
+  font-size: 0.9em;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  min-width: 80px;
+  text-align: center;
+}
+
+.connection-status.connected {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.connection-status.disconnected {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.orders-grid {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Custom cell styling */
+.side-yes {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.side-no {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.action-buy {
+  color: #007bff;
+  font-weight: 600;
+}
+
+.action-sell {
+  color: #fd7e14;
+  font-weight: 600;
+}
+
+.status-open {
+  color: #007bff;
+  background: #e7f3ff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.status-filled {
+  color: #28a745;
+  background: #e8f5e8;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.status-partial {
+  color: #ffc107;
+  background: #fff8e1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.status-canceled {
+  color: #dc3545;
+  background: #fdeaea;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.qty-partial {
+  background: #fff3cd;
+  color: #856404;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.update-type {
+  font-size: 0.8em;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.update-new {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.update-fill {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.update-cancel {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* AG Grid overrides for better styling */
+.ag-theme-alpine {
+  --ag-header-background-color: #f8f9fa;
+  --ag-header-foreground-color: #495057;
+  --ag-border-color: #dee2e6;
+  --ag-row-hover-color: #f8f9fa;
+  --ag-selected-row-background-color: #e3f2fd;
+}
+
+.ag-theme-alpine .ag-header {
+  font-weight: 600;
+}
+
+.ag-theme-alpine .ag-cell {
+  display: flex;
+  align-items: center;
+}
+
+/* Flash animations for real-time updates */
+@keyframes ag-flash-green {
+  0% { background-color: #d4edda; }
+  100% { background-color: transparent; }
+}
+
+@keyframes ag-flash-blue {
+  0% { background-color: #d1ecf1; }
+  100% { background-color: transparent; }
+}
+
+.ag-theme-alpine .ag-cell-flash {
+  animation: ag-flash-blue 1s ease-out;
+}
+
+.ag-theme-alpine .ag-cell-flash-fill {
+  animation: ag-flash-green 1s ease-out;
+}

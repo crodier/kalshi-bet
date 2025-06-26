@@ -1,0 +1,15 @@
+{
+  "name": "order-book-rebuilder",
+  "version": "1.0.0",
+  "description": "This service listens to Kafka for market data updates and maintains in-memory order books with concurrent access support.",
+  "main": "test-frontend.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.53.1"
+  }
+}

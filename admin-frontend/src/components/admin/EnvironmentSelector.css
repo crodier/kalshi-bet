@@ -1,0 +1,128 @@
+.environment-selector {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.environment-header {
+  margin-bottom: 16px;
+}
+
+.environment-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.environment-controls label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.environment-dropdown {
+  padding: 6px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  min-width: 100px;
+}
+
+.apply-btn, .reset-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.apply-btn {
+  background: #007bff;
+  color: white;
+}
+
+.apply-btn:hover {
+  background: #0056b3;
+}
+
+.reset-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.reset-btn:hover {
+  background: #545b62;
+}
+
+.service-urls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.service-url-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 300px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.service-label {
+  font-weight: 500;
+  color: #495057;
+}
+
+.base-url {
+  font-family: 'Courier New', monospace;
+  color: #6c757d;
+  font-size: 14px;
+  padding: 4px 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.custom-url-container {
+  position: relative;
+}
+
+.custom-url-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+
+.custom-url-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.custom-url-input.active {
+  border-color: #28a745;
+  background: #f8fff9;
+}
+
+.custom-url-input.invalid {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+.validation-error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 2px;
+}

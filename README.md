@@ -14,13 +14,30 @@ kalshi-bet/
 └── pom.xml                # Multi-module Maven build
 ```
 
-## Prerequisites
+## Quick Start with Docker
+
+**🚀 The easiest way to run the complete system:**
+
+```bash
+# Clone and start the system
+git clone <repository>
+cd kalshi-bet
+./start-system.sh
+```
+
+Then visit:
+- **Trading UI**: http://localhost:8080
+- **API Documentation**: http://localhost:9090/swagger-ui.html
+
+See [DOCKER_SETUP.md](DOCKER_SETUP.md) for detailed Docker configuration.
+
+## Prerequisites (Development)
 
 - Java 17+
 - Maven 3.8+
 - Gradle 7.5+
+- Node.js 16+ (for frontend development)
 - Docker & Docker Compose
-- Node.js 16+ (for frontend)
 - PostgreSQL (via Docker)
 
 ## Building the System

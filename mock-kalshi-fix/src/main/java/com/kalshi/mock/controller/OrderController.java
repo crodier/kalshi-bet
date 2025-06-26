@@ -4,6 +4,7 @@ import com.fbg.api.rest.*;
 import com.fbg.api.market.KalshiSide;
 import com.kalshi.mock.dto.KalshiOrderRequest;
 import com.kalshi.mock.service.OrderBookService;
+import com.kalshi.mock.service.OrderTrackingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,9 @@ public class OrderController {
     
     @Autowired
     private OrderBookService orderBookService;
+    
+    @Autowired
+    private OrderTrackingService orderTrackingService;
     
     // For demo purposes, using a fixed user ID
     private static final String DEMO_USER_ID = "USER-DEMO-001";
@@ -245,4 +250,5 @@ public class OrderController {
         
         return ResponseEntity.ok(new FillsResponse(fills, null));
     }
+    
 }

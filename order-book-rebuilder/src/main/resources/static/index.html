@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Book Viewer - Kalshi Style</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Order Book Rebuilder</h1>
+            <p>Real-time order book data from Kafka</p>
+        </header>
+
+        <div class="controls">
+            <div class="market-selector">
+                <label for="marketTicker">Market Ticker:</label>
+                <input type="text" id="marketTicker" placeholder="Enter market ticker (e.g., SELF_TEST_MARKET)" value="SELF_TEST_MARKET">
+                <button onclick="loadOrderBook()">Load Order Book</button>
+                <button onclick="refreshAll()">Refresh All</button>
+            </div>
+            
+            <div class="connection-status">
+                <span id="connectionStatus" class="status disconnected">Disconnected</span>
+                <button id="connectBtn" onclick="toggleWebSocket()">Connect WebSocket</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="order-book-container">
+                <div class="order-book-header">
+                    <h2 id="orderBookTitle">Order Book</h2>
+                    <div class="metadata">
+                        <span id="lastUpdate">Last Update: -</span>
+                        <span id="latency">Latency: -</span>
+                    </div>
+                </div>
+
+                <div class="order-book">
+                    <div class="yes-side">
+                        <h3>Yes Side</h3>
+                        <div class="book-header">
+                            <span>Price (¢)</span>
+                            <span>Size</span>
+                        </div>
+                        <div id="yesSideBook" class="book-levels">
+                            <div class="empty-book">No data</div>
+                        </div>
+                    </div>
+
+                    <div class="no-side">
+                        <h3>No Side</h3>
+                        <div class="book-header">
+                            <span>Price (¢)</span>
+                            <span>Size</span>
+                        </div>
+                        <div id="noSideBook" class="book-levels">
+                            <div class="empty-book">No data</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="markets-list">
+                <h3>Available Markets</h3>
+                <div id="marketsList" class="markets-container">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <h3>Statistics</h3>
+            <div id="stats" class="stats-container">
+                <div class="stat">
+                    <label>Total Order Books:</label>
+                    <span id="totalBooks">-</span>
+                </div>
+                <div class="stat">
+                    <label>Active Markets:</label>
+                    <span id="activeMarkets">-</span>
+                </div>
+                <div class="stat">
+                    <label>Closed Markets:</label>
+                    <span id="closedMarkets">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

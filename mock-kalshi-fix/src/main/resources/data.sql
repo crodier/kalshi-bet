@@ -116,7 +116,51 @@ INSERT INTO orders (
      
     ('ORD-INIT-010', 'client-010', 'USER-MARKET-MAKER', 'yes', 'sell', 'TRUMPWIN-24NOV05',
      'limit', 500, 0, 500, 43, NULL, 'open', 'GTC',
-     1700010000000, 1700010000000, NULL)
+     1700010000000, 1700010000000, NULL),
+     
+    -- NO side orders for DUMMY_TEST
+    ('ORD-INIT-011', 'client-011', 'USER-MARKET-MAKER', 'no', 'buy', 'DUMMY_TEST',
+     'limit', 120, 0, 120, 47, NULL, 'open', 'GTC',
+     1700011000000, 1700011000000, NULL),
+     
+    ('ORD-INIT-012', 'client-012', 'USER-MARKET-MAKER', 'no', 'buy', 'DUMMY_TEST',
+     'limit', 180, 0, 180, 49, NULL, 'open', 'GTC',
+     1700012000000, 1700012000000, NULL),
+     
+    ('ORD-INIT-013', 'client-013', 'USER-MARKET-MAKER', 'no', 'sell', 'DUMMY_TEST',
+     'limit', 140, 0, 140, 51, NULL, 'open', 'GTC',
+     1700013000000, 1700013000000, NULL),
+     
+    ('ORD-INIT-014', 'client-014', 'USER-MARKET-MAKER', 'no', 'sell', 'DUMMY_TEST',
+     'limit', 160, 0, 160, 54, NULL, 'open', 'GTC',
+     1700014000000, 1700014000000, NULL),
+     
+    -- NO side orders for INXD market
+    ('ORD-INIT-015', 'client-015', 'USER-MARKET-MAKER', 'no', 'buy', 'INXD-23DEC29-B5000',
+     'limit', 60, 0, 60, 53, NULL, 'open', 'GTC',
+     1700015000000, 1700015000000, NULL),
+     
+    ('ORD-INIT-016', 'client-016', 'USER-MARKET-MAKER', 'no', 'sell', 'INXD-23DEC29-B5000',
+     'limit', 70, 0, 70, 57, NULL, 'open', 'GTC',
+     1700016000000, 1700016000000, NULL),
+     
+    -- NO side orders for BTCZ market
+    ('ORD-INIT-017', 'client-017', 'USER-MARKET-MAKER', 'no', 'buy', 'BTCZ-23DEC31-B50000',
+     'limit', 80, 0, 80, 68, NULL, 'open', 'GTC',
+     1700017000000, 1700017000000, NULL),
+     
+    ('ORD-INIT-018', 'client-018', 'USER-MARKET-MAKER', 'no', 'sell', 'BTCZ-23DEC31-B50000',
+     'limit', 90, 0, 90, 72, NULL, 'open', 'GTC',
+     1700018000000, 1700018000000, NULL),
+     
+    -- NO side orders for TRUMPWIN market
+    ('ORD-INIT-019', 'client-019', 'USER-MARKET-MAKER', 'no', 'buy', 'TRUMPWIN-24NOV05',
+     'limit', 400, 0, 400, 56, NULL, 'open', 'GTC',
+     1700019000000, 1700019000000, NULL),
+     
+    ('ORD-INIT-020', 'client-020', 'USER-MARKET-MAKER', 'no', 'sell', 'TRUMPWIN-24NOV05',
+     'limit', 600, 0, 600, 63, NULL, 'open', 'GTC',
+     1700020000000, 1700020000000, NULL)
 ON CONFLICT (order_id) DO NOTHING;
 
 -- Insert MARKET_MAKER market for automated market making
@@ -148,3 +192,45 @@ INSERT INTO markets (
      'binary', NULL, NULL,
      'Market maker test market', NULL, 'cents', NULL)
 ON CONFLICT (ticker) DO NOTHING;
+
+-- Initial orders for MARKET_MAKER market
+INSERT INTO orders (
+    order_id, client_order_id, user_id, side, action, market_ticker,
+    order_type, quantity, filled_quantity, remaining_quantity,
+    price, avg_fill_price, status, time_in_force,
+    created_time, updated_time, expiration_time
+) VALUES
+    -- YES side orders for MARKET_MAKER
+    ('ORD-MM-001', 'mm-client-001', 'USER-MARKET-MAKER', 'yes', 'buy', 'MARKET_MAKER',
+     'limit', 100, 0, 100, 45, NULL, 'open', 'GTC',
+     1700021000000, 1700021000000, NULL),
+     
+    ('ORD-MM-002', 'mm-client-002', 'USER-MARKET-MAKER', 'yes', 'buy', 'MARKET_MAKER',
+     'limit', 150, 0, 150, 43, NULL, 'open', 'GTC',
+     1700022000000, 1700022000000, NULL),
+     
+    ('ORD-MM-003', 'mm-client-003', 'USER-MARKET-MAKER', 'yes', 'sell', 'MARKET_MAKER',
+     'limit', 120, 0, 120, 52, NULL, 'open', 'GTC',
+     1700023000000, 1700023000000, NULL),
+     
+    ('ORD-MM-004', 'mm-client-004', 'USER-MARKET-MAKER', 'yes', 'sell', 'MARKET_MAKER',
+     'limit', 100, 0, 100, 55, NULL, 'open', 'GTC',
+     1700024000000, 1700024000000, NULL),
+     
+    -- NO side orders for MARKET_MAKER
+    ('ORD-MM-005', 'mm-client-005', 'USER-MARKET-MAKER', 'no', 'buy', 'MARKET_MAKER',
+     'limit', 110, 0, 110, 48, NULL, 'open', 'GTC',
+     1700025000000, 1700025000000, NULL),
+     
+    ('ORD-MM-006', 'mm-client-006', 'USER-MARKET-MAKER', 'no', 'buy', 'MARKET_MAKER',
+     'limit', 130, 0, 130, 45, NULL, 'open', 'GTC',
+     1700026000000, 1700026000000, NULL),
+     
+    ('ORD-MM-007', 'mm-client-007', 'USER-MARKET-MAKER', 'no', 'sell', 'MARKET_MAKER',
+     'limit', 140, 0, 140, 55, NULL, 'open', 'GTC',
+     1700027000000, 1700027000000, NULL),
+     
+    ('ORD-MM-008', 'mm-client-008', 'USER-MARKET-MAKER', 'no', 'sell', 'MARKET_MAKER',
+     'limit', 160, 0, 160, 57, NULL, 'open', 'GTC',
+     1700028000000, 1700028000000, NULL)
+ON CONFLICT (order_id) DO NOTHING;

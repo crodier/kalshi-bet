@@ -1,0 +1,63 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - heading "Mock Kalshi Trading Platform" [level=1]
+- heading "Markets" [level=2]
+- text: Market Yes Buy Best No Buy Best Last Bid Update Last Ask Update Last Execution Volume BTCZ-23DEC31-B50000 Will Bitcoin close above $50,000 on Dec 31? 29¢ 18:46:03.5 - 18:46:03.5 UPDATE 75 @ 29¢ 18:46:03.5 - ¢ × 1 18:46:03.5 0 DUMMY_TEST Test Market for Development 48¢ 18:46:03.2 48¢ 18:46:03.2 - - - 100 INXD-23DEC29-B5000 Will S&P 500 close above 5000 on Dec 29? 45¢ 18:46:03.2 45¢ 18:46:03.2 - - - 1,000 MARKET_MAKER Market Maker Test Market 45¢ 18:46:03.2 45¢ 18:46:03.2 - - - 0 TRUMPWIN-24NOV05 Will Trump win the 2024 presidential election? 38¢ 18:46:03.2 58¢ 18:46:03.2 - - - 50,000
+- heading "Orders - DUMMY_TEST" [level=3]
+- text: "Total: 0 Open: 0 Filled: 0 🔗 Live"
+- grid:
+  - rowgroup:
+    - row "Order ID":
+      - columnheader "Order ID"
+  - rowgroup:
+    - row "Market Side Action Status Type Orig Qty Filled Remaining Price Avg Fill TIF Created Updated":
+      - columnheader "Market"
+      - columnheader "Side"
+      - columnheader "Action"
+      - columnheader "Status"
+      - columnheader "Type"
+      - columnheader "Orig Qty"
+      - columnheader "Filled"
+      - columnheader "Remaining"
+      - columnheader "Price"
+      - columnheader "Avg Fill"
+      - columnheader "TIF"
+      - columnheader "Created"
+      - columnheader "Updated"
+  - rowgroup
+  - rowgroup
+  - rowgroup
+  - rowgroup
+  - rowgroup
+  - rowgroup
+  - text: No Rows To Show
+- text: "🔄 DELTA • Messages: 0 • Deltas: 0 • Snapshots: 0"
+- heading "Order Book - DUMMY_TEST" [level=3]
+- heading "Yes (Buy)" [level=4]
+- text: Price Quantity No buy orders
+- heading "No (Buy)" [level=4]
+- text: Price Quantity No sell orders
+- heading "Market Cross Order" [level=3]
+- button "Buy YES --¢"
+- button "Buy NO --¢"
+- text: Quantity
+- spinbutton: "1"
+- text: Limit Price
+- spinbutton
+- text: "¢ Cost: $0 Potential Return: $1.00 Potential Profit: $1.00"
+- button "Buy YES" [disabled]
+- heading "Place Order" [level=3]
+- text: "Market:"
+- strong: DUMMY_TEST
+- text: Side
+- combobox:
+  - option "Buy YES" [selected]
+  - option "Buy NO"
+- text: Price (¢)
+- spinbutton
+- text: Quantity
+- spinbutton
+- button "BUY YES"
+```

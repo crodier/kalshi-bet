@@ -1,0 +1,106 @@
+
+Running 5 tests using 4 workers
+
+[1A[2K[1/5] [chromium] › tests/simple-orders-panel.spec.js:49:3 › Simple Orders Panel › should display existing orders in the table
+[1A[2K[2/5] [chromium] › tests/simple-orders-panel.spec.js:75:3 › Simple Orders Panel › should handle order creation and real-time updates
+[1A[2K[3/5] [chromium] › tests/simple-orders-panel.spec.js:23:3 › Simple Orders Panel › should load orders when a market is selected
+[1A[2K[4/5] [chromium] › tests/simple-orders-panel.spec.js:16:3 › Simple Orders Panel › should show "Select a market" message when no market is selected
+[1A[2K[5/5] [chromium] › tests/simple-orders-panel.spec.js:138:3 › Simple Orders Panel › should display order data with proper formatting
+[1A[2K  1) [chromium] › tests/simple-orders-panel.spec.js:23:3 › Simple Orders Panel › should load orders when a market is selected 
+
+    Error: expect.toContainText: Error: strict mode violation: locator('th') resolved to 9 elements:
+        1) <th>Order ID</th> aka getByRole('cell', { name: 'Order ID' })
+        2) <th>Side</th> aka getByRole('cell', { name: 'Side' })
+        3) <th>Action</th> aka getByRole('cell', { name: 'Action' })
+        4) <th>Status</th> aka getByRole('cell', { name: 'Status' })
+        5) <th>Qty</th> aka getByRole('cell', { name: 'Qty' })
+        6) <th>Filled</th> aka getByRole('cell', { name: 'Filled' })
+        7) <th>Price</th> aka getByRole('cell', { name: 'Price' })
+        8) <th>Type</th> aka getByRole('cell', { name: 'Type' })
+        9) <th>Created</th> aka getByRole('cell', { name: 'Created' })
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for locator('th')[22m
+
+
+      43 |     const headers = ['Order ID', 'Side', 'Action', 'Status', 'Qty', 'Price'];
+      44 |     for (const header of headers) {
+    > 45 |       await expect(page.locator('th')).toContainText(header);
+         |                                        ^
+      46 |     }
+      47 |   });
+      48 |
+        at /home/crodier/coding/kalshi-bet/mock-kalshi-fix/frontend/frontend/tests/simple-orders-panel.spec.js:45:40
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/simple-orders-panel-Simple-821cd-s-when-a-market-is-selected-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/simple-orders-panel-Simple-821cd-s-when-a-market-is-selected-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2) [chromium] › tests/simple-orders-panel.spec.js:49:3 › Simple Orders Panel › should display existing orders in the table 
+
+    Error: [31mTimed out 5000ms waiting for [39m[2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m
+
+    Locator: locator('.simple-orders-table tbody')
+    Expected string: [32m"No orders found for this market"[39m
+    Received: <element(s) not found>
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for locator('.simple-orders-table tbody')[22m
+
+
+      69 |     } else {
+      70 |       // If no orders, check that we show the "No orders found" message
+    > 71 |       await expect(page.locator('.simple-orders-table tbody')).toContainText('No orders found for this market');
+         |                                                                ^
+      72 |     }
+      73 |   });
+      74 |
+        at /home/crodier/coding/kalshi-bet/mock-kalshi-fix/frontend/frontend/tests/simple-orders-panel.spec.js:71:64
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/simple-orders-panel-Simple-4d7f5-xisting-orders-in-the-table-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/simple-orders-panel-Simple-4d7f5-xisting-orders-in-the-table-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  3) [chromium] › tests/simple-orders-panel.spec.js:75:3 › Simple Orders Panel › should handle order creation and real-time updates 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.textContent: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.orders-stats')[22m
+
+
+      82 |     
+      83 |     // Get initial order count
+    > 84 |     const initialStatsText = await page.locator('.orders-stats').textContent();
+         |                                                                  ^
+      85 |     const initialTotalMatch = initialStatsText.match(/Total:\s*(\d+)/);
+      86 |     const initialTotal = initialTotalMatch ? parseInt(initialTotalMatch[1]) : 0;
+      87 |     
+        at /home/crodier/coding/kalshi-bet/mock-kalshi-fix/frontend/frontend/tests/simple-orders-panel.spec.js:84:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/simple-orders-panel-Simple-bcead-ation-and-real-time-updates-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/simple-orders-panel-Simple-bcead-ation-and-real-time-updates-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  3 failed
+    [chromium] › tests/simple-orders-panel.spec.js:23:3 › Simple Orders Panel › should load orders when a market is selected 
+    [chromium] › tests/simple-orders-panel.spec.js:49:3 › Simple Orders Panel › should display existing orders in the table 
+    [chromium] › tests/simple-orders-panel.spec.js:75:3 › Simple Orders Panel › should handle order creation and real-time updates 
+  2 passed (33.8s)

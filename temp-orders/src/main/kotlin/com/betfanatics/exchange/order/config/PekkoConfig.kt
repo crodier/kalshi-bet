@@ -26,6 +26,8 @@ import org.apache.pekko.actor.typed.SupervisorStrategy
 import java.time.Duration
 import com.betfanatics.exchange.order.actor.PositionActor
 import com.betfanatics.exchange.order.actor.common.PositionActorResolver
+import com.betfanatics.exchange.order.health.FixHealthIndicator
+import com.betfanatics.exchange.order.service.FixErrorService
 import lombok.extern.slf4j.Slf4j
 
 @Slf4j
@@ -82,7 +84,12 @@ open class PekkoConfig {
     open fun fixGatewayActor(
         actorSystem: ActorSystem<Void>,
         orderActorResolver: OrderActorResolver,
-        dataSource: DataSource
+        dataSource: DataSource,
+        fixHealthIndicator: FixHealthIndicator,
+        fixErrorService: FixErrorService,
+        fixClOrdIdGenerator: com.betfanatics.exchange.order.util.FixClOrdIdGenerator,
+        clOrdIdMappingService: com.betfanatics.exchange.order.service.ClOrdIdMappingService,
+        executionReportEnrichmentService: com.betfanatics.exchange.order.service.ExecutionReportEnrichmentService
     ): ActorRef<FixGatewayActor.Command> {
 
         System.setProperty("quickfixj.session.debug", "true");
@@ -108,7 +115,7 @@ open class PekkoConfig {
         val proxy = singletonManager.init(
             SingletonActor.of(
                 Behaviors.supervise(
-                    FixGatewayActor.create(isSpringMockEnvActive,settingsPath, orderActorResolver, dataSource))
+                    FixGatewayActor.create(isSpringMockEnvActive,settingsPath, orderActorResolver, dataSource, fixHealthIndicator, fixErrorService, fixClOrdIdGenerator, clOrdIdMappingService, executionReportEnrichmentService))
                     .onFailure(SupervisorStrategy.restartWithBackoff(Duration.ofSeconds(1), Duration.ofSeconds(30), 0.2)),
                 "FixGatewayActor"
             )

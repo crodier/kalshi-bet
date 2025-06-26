@@ -5,7 +5,13 @@ import quickfix.field.*
 import quickfix.fix50sp2.*
 import quickfix.Message
 import com.betfanatics.exchange.order.util.KalshiSignatureUtil
+import com.betfanatics.exchange.order.util.FixMessageLogger
+import com.betfanatics.exchange.order.util.FixClOrdIdGenerator
 import com.betfanatics.exchange.order.actor.common.OrderActorResolver
+import com.betfanatics.exchange.order.health.FixHealthIndicator
+import com.betfanatics.exchange.order.service.FixErrorService
+import com.betfanatics.exchange.order.service.ClOrdIdMappingService
+import com.betfanatics.exchange.order.service.ExecutionReportEnrichmentService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.security.PrivateKey
@@ -16,6 +22,11 @@ class QuickfixJApplication(
     private val isMockMode: Boolean,
     private val privateKey: PrivateKey?,
     private val orderActorResolver: OrderActorResolver,
+    private val fixHealthIndicator: FixHealthIndicator,
+    private val fixErrorService: FixErrorService,
+    private val fixClOrdIdGenerator: FixClOrdIdGenerator,
+    private val clOrdIdMappingService: ClOrdIdMappingService,
+    private val executionReportEnrichmentService: ExecutionReportEnrichmentService,
     private val onConnected: (SessionID) -> Unit,
     private val onDisconnected: () -> Unit
 ) : Application {
@@ -28,12 +39,16 @@ class QuickfixJApplication(
     
     override fun onLogon(sessionId: SessionID) {
         onConnected(sessionId)
-        log.info("QuickFIX/J session logged on: {}", sessionId)
+        fixHealthIndicator.setConnected(sessionId)
+        fixClOrdIdGenerator.onSessionStart()
+        log.info("QuickFIX/J session logged on: {} with ClOrdID prefix: {}", 
+            sessionId, fixClOrdIdGenerator.getCurrentSessionPrefix())
         // TODO handle sequence gaps
     }
     
     override fun onLogout(sessionId: SessionID) {
         onDisconnected()
+        fixHealthIndicator.setDisconnected()
         log.info("QuickFIX/J session logged out: {}", sessionId)
     }
 
@@ -41,9 +56,12 @@ class QuickfixJApplication(
     // we intercept to add fields to the logon message
     // also fires for heartbeat messages, which we ignore
     override fun toAdmin(message: Message, sessionId: SessionID) {
-        //log.info("toAdmin: [{}] [{}]", message, sessionId)
+        // Log all admin messages
+        val msgType = try { message.header.getString(MsgType.FIELD) } catch (e: Exception) { "UNKNOWN" }
+        FixMessageLogger.logAdminMessage(message, sessionId.toString(), "OUTGOING")
+        
         try {
-            if (MsgType.LOGON == message.header.getString(MsgType.FIELD)) {
+            if (MsgType.LOGON == msgType) {
                 val sendingTime = message.header.getString(SendingTime.FIELD)
                 val msgType = message.header.getString(MsgType.FIELD)
                 val msgSeqNum = message.header.getString(MsgSeqNum.FIELD)
@@ -73,17 +91,35 @@ class QuickfixJApplication(
             }
         } catch (e: Exception) {
             log.error("Error setting logon fields: {}", e.message)
+            fixErrorService.reportAuthenticationError(sessionId.toString(), 
+                "Failed to set logon fields: ${e.message}", 
+                mapOf("exception" to e.javaClass.simpleName))
         }
     }
     
     override fun toApp(message: Message, sessionId: SessionID) {
-        log.info("toApp: [{}] [{}]", message, sessionId)
+        // Extract order ID for correlation
+        val orderId = try { message.getString(ClOrdID.FIELD) } catch (e: Exception) { null }
+        FixMessageLogger.logOutgoingFixMessage(message, orderId, sessionId.toString())
+        
+        log.info("HANDOFF_TO_FIX: from=QuickfixJApplication to=FixProtocol sessionId={} orderId={}", 
+            sessionId, orderId ?: "unknown")
     }
     
     override fun fromAdmin(message: Message, sessionId: SessionID) {
-        // Ongoing gap detection during normal operation?
         try {
             val msgType = message.header.getString(MsgType.FIELD)
+            
+            // Log based on message type
+            when (msgType) {
+                MsgType.HEARTBEAT -> {
+                    FixMessageLogger.logHeartbeat(message, sessionId.toString(), "INCOMING")
+                }
+                else -> {
+                    FixMessageLogger.logAdminMessage(message, sessionId.toString(), "INCOMING")
+                }
+            }
+            
             val seqNum = message.header.getInt(MsgSeqNum.FIELD)
             val possDupFlag = if (message.header.isSetField(PossDupFlag.FIELD)) 
                 message.header.getBoolean(PossDupFlag.FIELD) else false
@@ -95,9 +131,16 @@ class QuickfixJApplication(
                 }
                 MsgType.RESEND_REQUEST -> {
                     log.info("Received resend request from exchange: {}", message)
+                    val beginSeq = message.getInt(BeginSeqNo.FIELD)
+                    val endSeq = message.getInt(EndSeqNo.FIELD)
+                    fixErrorService.reportSequenceError(sessionId.toString(), 
+                        "Resend request received", beginSeq, endSeq)
                 }
                 MsgType.SEQUENCE_RESET -> {
                     log.info("Received sequence reset: {}", message)
+                    val newSeqNo = message.getInt(NewSeqNo.FIELD)
+                    fixErrorService.reportSequenceError(sessionId.toString(), 
+                        "Sequence reset received", null, newSeqNo)
                 }
                 else -> {
                     log.info("Admin message received - Type: {}, SeqNum: {}, PossDup: {}", 
@@ -106,32 +149,54 @@ class QuickfixJApplication(
             }
         } catch (e: Exception) {
             log.error("Error processing admin message: {}", e.message)
+            fixErrorService.reportMessageProcessingError(sessionId.toString(),
+                "Admin message processing failed: ${e.message}",
+                try { message.header.getString(MsgType.FIELD) } catch (ex: Exception) { null })
         }
     }
     
     override fun fromApp(message: Message, sessionId: SessionID) {
-        log.info("fromApp: [{}] [{}]", message, sessionId)
+        // Extract ClOrdID and lookup actual orderId
+        val clOrdId = try { message.getString(ClOrdID.FIELD) } catch (e: Exception) { null }
+        val orderId = clOrdId?.let { clOrdIdMappingService.getOrderIdByClOrdId(it) }
+        FixMessageLogger.logIncomingFixMessage(message, orderId, sessionId.toString())
+        
+        log.info("HANDOFF_FROM_FIX: from=FixProtocol to=QuickfixJApplication sessionId={} orderId={}", 
+            sessionId, orderId ?: "unknown")
+        
         try {
-            if (message.header.getString(MsgType.FIELD) == MsgType.EXECUTION_REPORT) {
-                val clOrdId = message.getString(ClOrdID.FIELD)
-                val execType = message.getString(ExecType.FIELD)
-                val ordStatus = message.getString(OrdStatus.FIELD)
-                val cumQty = message.getDouble(CumQty.FIELD)
-                val leavesQty = message.getDouble(LeavesQty.FIELD)
-                val lastPx = if (message.isSetField(LastPx.FIELD)) message.getDouble(LastPx.FIELD) else null
-                val lastQty = if (message.isSetField(LastQty.FIELD)) message.getDouble(LastQty.FIELD) else null
-                val symbol = if (message.isSetField(Symbol.FIELD)) message.getString(Symbol.FIELD) else null
-                val side = if (message.isSetField(Side.FIELD)) message.getString(Side.FIELD) else null
-
-                log.info("[FIX ExecutionReport] ClOrdID={}, ExecType={}, OrdStatus={}, CumQty={}, LeavesQty={}, LastPx={}, LastQty={}, Symbol={}, Side={}",
-                    clOrdId, execType, ordStatus, cumQty, leavesQty, lastPx, lastQty, symbol, side)
+            val msgType = message.header.getString(MsgType.FIELD)
+            
+            if (msgType == MsgType.EXECUTION_REPORT) {
+                // Enrich the execution report with original order data
+                val enrichedReport = executionReportEnrichmentService.enrichExecutionReport(message)
+                if (enrichedReport == null) {
+                    log.error("Failed to enrich execution report")
+                    return
+                }
+                
+                val betOrderId = enrichedReport.betOrderId
+                if (betOrderId == "UNKNOWN") {
+                    log.error("No betOrderId mapping found for ClOrdID={}", enrichedReport.clOrdId)
+                    return
+                }
+                
+                log.info("[FIX ExecutionReport] ClOrdID={}, BetOrderId={}, ExchangeOrderId={}, ExecType={}, OrdStatus={}, CumQty={}, LeavesQty={}, LastPx={}, LastQty={}, Symbol={}, Side={}, HasOriginalOrder={}",
+                    enrichedReport.clOrdID, enrichedReport.betOrderId, enrichedReport.orderID,
+                    enrichedReport.execType, enrichedReport.ordStatus, enrichedReport.cumQty, 
+                    enrichedReport.leavesQty, enrichedReport.lastPx, enrichedReport.lastQty, 
+                    enrichedReport.instrument.symbol, enrichedReport.side, enrichedReport.originalOrder != null)
 
                 // Handle order status and execution updates
-                val orderId = clOrdId // Assume ClOrdID == orderId for now
-                val orderRef = orderActorResolver(orderId)
+                val orderRef = orderActorResolver(betOrderId)
+                
+                // Pass the enriched execution report to the order actor
+                val execType = enrichedReport.execType
+                val ordStatus = enrichedReport.ordStatus
+                val lastQty = enrichedReport.lastQty
                 
                 when (ordStatus) {
-                    "0" -> { // New - Order accepted by exchange
+                    OrderStatus.New -> { // Order accepted by exchange
                         log.info("[FIX ExecutionReport] Order accepted (OrdStatus=0) for orderId={}", orderId)
                         orderRef.tell(OrderActor.FixOrderAccepted(Instant.now()))
                     }
@@ -153,8 +218,7 @@ class QuickfixJApplication(
                         log.debug("[FIX ExecutionReport] Unhandled OrdStatus={} for orderId={}", ordStatus, orderId)
                     }
                 }
-            }
-            if (message.header.getString(MsgType.FIELD) == "zz") { // TODO make the code generator work
+            } else if (msgType == "zz") { // UMS message
                 log.info("[FIX UMS] {}", message)
                 val id = message.getString(20105) // marketsettlementreportid
                 val symbol = message.getString(55) // symbol
@@ -168,10 +232,22 @@ class QuickfixJApplication(
                     - send a message to the fbg wallet actor to credit the user's account
                     - anything else?
                  */
+            } else {
+                // Unknown message type
+                FixMessageLogger.logUnknownFixMessage(message, sessionId.toString(), 
+                    "Unknown message type: $msgType")
+                log.warn("UNKNOWN_FIX_MESSAGE: sessionId={} msgType={} orderId={}", 
+                    sessionId, msgType, orderId ?: "unknown")
+                fixErrorService.reportMessageProcessingError(sessionId.toString(),
+                    "Unknown message type received: $msgType", msgType)
             }
             
         } catch (e: Exception) {
             log.error("Error parsing ExecutionReport: {}", e.message)
+            fixErrorService.reportMessageProcessingError(sessionId.toString(),
+                "Failed to parse message: ${e.message}",
+                try { message.header.getString(MsgType.FIELD) } catch (ex: Exception) { null },
+                mapOf("orderId" to (orderId ?: "unknown")))
         }
     }            
 }

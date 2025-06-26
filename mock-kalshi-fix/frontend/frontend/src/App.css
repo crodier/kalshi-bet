@@ -33,6 +33,10 @@
   flex: 0 0 auto;
 }
 
+.middle-panel {
+  flex: 0 0 auto;
+}
+
 .bottom-panel {
   flex: 1;
   display: grid;

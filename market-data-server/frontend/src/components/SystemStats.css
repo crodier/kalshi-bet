@@ -1,0 +1,84 @@
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-item {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #1976d2;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-value.status-connected {
+  color: #4caf50;
+}
+
+.stat-value.status-disconnected {
+  color: #f44336;
+}
+
+.stat-value.status-connecting {
+  color: #ff9800;
+}
+
+.performance-metrics {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1.5rem;
+}
+
+.performance-metrics h3 {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.metrics-row {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.metric-label {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.metric-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1976d2;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metrics-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}

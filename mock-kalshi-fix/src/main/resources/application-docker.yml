@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://postgres:5432/kalshi_mock
+    url: jdbc:postgresql://mock-exchange-postgres:5432/kalshi_mock
     username: kalshi
     password: kalshi_dev_password
     driver-class-name: org.postgresql.Driver

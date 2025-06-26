@@ -1,0 +1,175 @@
+{
+  "config": {
+    "configFile": "/home/crodier/coding/kalshi-bet/mock-kalshi-fix/frontend/frontend/playwright.config.js",
+    "rootDir": "/home/crodier/coding/kalshi-bet/mock-kalshi-fix/frontend/frontend/tests",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/crodier/coding/kalshi-bet/mock-kalshi-fix/frontend/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/crodier/coding/kalshi-bet/mock-kalshi-fix/frontend/frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.53.1",
+    "workers": 4,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:5173",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "final-orders-panel.spec.js",
+      "file": "final-orders-panel.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Orders Panel - Final Tests",
+          "file": "final-orders-panel.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "complete orders panel workflow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8067,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Stats text: Total: 0Open: 0Filled: 0\n"
+                        },
+                        {
+                          "text": "Initial order count: \u001b[33m0\u001b[39m\n"
+                        },
+                        {
+                          "text": "Creating new order...\n"
+                        },
+                        {
+                          "text": "Order response: { success: \u001b[33mfalse\u001b[39m, error: \u001b[32m''\u001b[39m }\n"
+                        },
+                        {
+                          "text": "\nTesting market switching...\n"
+                        },
+                        {
+                          "text": "✓ Successfully switched to BTC market\n"
+                        },
+                        {
+                          "text": "✓ Successfully switched back to DUMMY_TEST market\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-26T22:18:59.694Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "250217c107a77c6bf6b5-d6f2cf742548965f684c",
+              "file": "final-orders-panel.spec.js",
+              "line": 16,
+              "column": 3
+            },
+            {
+              "title": "orders panel displays correct styling",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 5210,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-06-26T22:18:59.758Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "250217c107a77c6bf6b5-ae5166a2da40a41b831b",
+              "file": "final-orders-panel.spec.js",
+              "line": 167,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-06-26T22:18:58.213Z",
+    "duration": 9820.948,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

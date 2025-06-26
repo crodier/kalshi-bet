@@ -11,15 +11,12 @@ import com.kalshi.mock.service.MatchingEngine.Execution;
 import com.kalshi.mock.event.OrderBookEvent;
 import com.kalshi.mock.event.OrderBookEventPublisher;
 import com.kalshi.mock.event.OrderUpdateEvent;
-import com.kalshi.mock.event.OrderUpdateEventPublisher;
-import com.kalshi.mock.websocket.dto.OrderUpdateMessage;
 import com.kalshi.mock.converter.YesNoConverter;
 import com.kalshi.mock.converter.YesNoConverter.ConvertedOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,7 +42,7 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
     private OrderBookEventPublisher eventPublisher;
     
     @Autowired
-    private OrderUpdateEventPublisher orderUpdateEventPublisher;
+    private OrderTrackingService orderTrackingService;
     
     
     public void createOrderBook(String marketTicker) {
@@ -90,30 +87,6 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
         }
     }
     
-    private OrderUpdateMessage createOrderUpdateMessage(Order order, String action, OrderUpdateEvent.OrderUpdateType updateType) {
-        LocalDateTime now = LocalDateTime.now();
-        return new OrderUpdateMessage(
-            order.getId(),
-            order.getUser_id(), 
-            order.getSymbol(),
-            order.getSide().name(),
-            action,
-            order.getOrder_type(),
-            order.getQuantity(),
-            order.getFilled_quantity(),
-            order.getRemaining_quantity(),
-            order.getPrice() != null ? order.getPrice() : 0,
-            order.getAvg_fill_price(),
-            order.getStatus(),
-            order.getTime_in_force(),
-            LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(order.getCreated_time()), 
-                java.time.ZoneId.systemDefault()
-            ),
-            now,
-            updateType.name()
-        );
-    }
     
     public Order createOrder(String marketTicker, OrderRequest request, String action, String userId) {
         ConcurrentOrderBook orderBook = orderBooks.get(marketTicker);
@@ -290,16 +263,12 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
         // Persist order to database
         persistenceService.saveOrder(order, action);
         
-        // Publish order update event for NEW order
-        OrderUpdateMessage orderUpdate = createOrderUpdateMessage(order, action, OrderUpdateEvent.OrderUpdateType.NEW);
-        OrderUpdateEvent orderEvent = new OrderUpdateEvent(orderUpdate, OrderUpdateEvent.OrderUpdateType.NEW);
-        orderUpdateEventPublisher.publishOrderUpdate(orderEvent);
+        // Track new order in memory and publish WebSocket update
+        orderTrackingService.trackNewOrder(order, action);
         
         // If order was partially or fully filled, publish FILL event as well
         if (filledQuantity > 0) {
-            OrderUpdateMessage fillUpdate = createOrderUpdateMessage(order, action, OrderUpdateEvent.OrderUpdateType.FILL);
-            OrderUpdateEvent fillEvent = new OrderUpdateEvent(fillUpdate, OrderUpdateEvent.OrderUpdateType.FILL);
-            orderUpdateEventPublisher.publishOrderUpdate(fillEvent);
+            orderTrackingService.updateOrder(order, action, OrderUpdateEvent.OrderUpdateType.FILL);
         }
         
         return order;
@@ -336,9 +305,7 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
         // Get the action from the database (we need to look it up)
         String action = persistenceService.getOrderAction(orderId);
         if (action != null) {
-            OrderUpdateMessage cancelUpdate = createOrderUpdateMessage(updatedOrder, action, OrderUpdateEvent.OrderUpdateType.CANCEL);
-            OrderUpdateEvent cancelEvent = new OrderUpdateEvent(cancelUpdate, OrderUpdateEvent.OrderUpdateType.CANCEL);
-            orderUpdateEventPublisher.publishOrderUpdate(cancelEvent);
+            orderTrackingService.updateOrder(updatedOrder, action, OrderUpdateEvent.OrderUpdateType.CANCEL);
         }
         
         return updatedOrder;

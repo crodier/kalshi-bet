@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Book Rebuilder - Admin Console</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+    <link rel="stylesheet" href="admin-styles.css">
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+        
+        // Admin WebSocket Service
+        class AdminWebSocketService {
+            constructor() {
+                this.client = null;
+                this.connected = false;
+                this.messageHandlers = new Map();
+                this.connectionHandlers = new Set();
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.subscriptions = new Map();
+            }
+            
+            connect(url = '/admin/ws/v2') {
+                return new Promise((resolve, reject) => {
+                    const socket = new SockJS(url);
+                    this.client = new StompJs.Client({
+                        webSocketFactory: () => socket,
+                        onConnect: () => {
+                            console.log('Admin WebSocket connected');
+                            this.connected = true;
+                            this.reconnectAttempts = 0;
+                            this.notifyConnectionHandlers(true);
+                            resolve();
+                        },
+                        onDisconnect: () => {
+                            console.log('Admin WebSocket disconnected');
+                            this.connected = false;
+                            this.notifyConnectionHandlers(false);
+                            this.attemptReconnect();
+                        },
+                        onStompError: (frame) => {
+                            console.error('STOMP error', frame);
+                            reject(new Error(frame.body));
+                        }
+                    });
+                    
+                    this.client.activate();
+                });
+            }
+            
+            attemptReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+                    setTimeout(() => {
+                        this.connect();
+                    }, 1000 * this.reconnectAttempts);
+                }
+            }
+            
+            subscribe(channels, searchPrefix = '', maxMarkets = 50) {
+                if (!this.connected || !this.client) {
+                    console.error('WebSocket not connected');
+                    return null;
+                }
+                
+                const subscriptionMessage = {
+                    cmd: 'subscribe',
+                    params: {
+                        channels: channels,
+                        search_prefix: searchPrefix,
+                        max_markets: maxMarkets
+                    }
+                };
+                
+                // Subscribe to admin endpoints
+                const subId = Date.now().toString();
+                
+                const orderBookSub = this.client.subscribe('/user/admin/orderbook', (message) => {
+                    const data = JSON.parse(message.body);
+                    this.handleMessage('orderbook', data);
+                });
+                
+                const subscriptionSub = this.client.subscribe('/user/admin/subscriptions', (message) => {
+                    const data = JSON.parse(message.body);
+                    this.handleMessage('subscription', data);
+                });
+                
+                this.subscriptions.set(subId, { orderBookSub, subscriptionSub });
+                
+                // Send subscription request
+                this.client.publish({
+                    destination: '/admin/subscribe',
+                    body: JSON.stringify(subscriptionMessage)
+                });
+                
+                return subId;
+            }
+            
+            searchMarkets(query, limit = 10) {
+                if (!this.connected || !this.client) {
+                    console.error('WebSocket not connected');
+                    return;
+                }
+                
+                const searchMessage = {
+                    query: query,
+                    limit: limit
+                };
+                
+                const searchSub = this.client.subscribe('/user/admin/search', (message) => {
+                    const data = JSON.parse(message.body);
+                    this.handleMessage('search', data);
+                });
+                
+                this.client.publish({
+                    destination: '/admin/market_search',
+                    body: JSON.stringify(searchMessage)
+                });
+            }
+            
+            unsubscribe(subscriptionId) {
+                const subscription = this.subscriptions.get(subscriptionId);
+                if (subscription) {
+                    subscription.orderBookSub.unsubscribe();
+                    subscription.subscriptionSub.unsubscribe();
+                    this.subscriptions.delete(subscriptionId);
+                }
+            }
+            
+            handleMessage(type, message) {
+                this.messageHandlers.forEach((handler) => {
+                    handler(type, message);
+                });
+            }
+            
+            onMessage(handler) {
+                const id = Date.now().toString();
+                this.messageHandlers.set(id, handler);
+                return () => this.messageHandlers.delete(id);
+            }
+            
+            onConnectionChange(handler) {
+                this.connectionHandlers.add(handler);
+                return () => this.connectionHandlers.delete(handler);
+            }
+            
+            notifyConnectionHandlers(connected) {
+                this.connectionHandlers.forEach(handler => handler(connected));
+            }
+            
+            disconnect() {
+                if (this.client) {
+                    this.client.deactivate();
+                }
+                this.connected = false;
+                this.messageHandlers.clear();
+                this.subscriptions.clear();
+            }
+        }
+        
+        const adminWS = new AdminWebSocketService();
+        
+        // Market Search Component
+        const MarketSearch = ({ onMarketSelect, onSearchResults }) => {
+            const [searchQuery, setSearchQuery] = useState('');
+            const [suggestions, setSuggestions] = useState([]);
+            const [isSearching, setIsSearching] = useState(false);
+            
+            const handleSearch = useCallback(() => {
+                if (searchQuery.trim()) {
+                    setIsSearching(true);
+                    adminWS.searchMarkets(searchQuery.trim(), 20);
+                }
+            }, [searchQuery]);
+            
+            useEffect(() => {
+                const unsubscribe = adminWS.onMessage((type, message) => {
+                    if (type === 'search' && message.type === 'market_search_response') {
+                        setSuggestions(message.suggestions);
+                        setIsSearching(false);
+                        if (onSearchResults) {
+                            onSearchResults(message.suggestions);
+                        }
+                    }
+                });
+                
+                return unsubscribe;
+            }, [onSearchResults]);
+            
+            return (
+                <div className="market-search">
+                    <div className="search-input-container">
+                        <input
+                            type="text"
+                            placeholder="Search markets by ticker..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                            className="search-input"
+                        />
+                        <button 
+                            onClick={handleSearch} 
+                            disabled={isSearching}
+                            className="search-button"
+                        >
+                            {isSearching ? 'Searching...' : 'Search'}
+                        </button>
+                    </div>
+                    
+                    {suggestions.length > 0 && (
+                        <div className="search-suggestions">
+                            <h4>Search Results ({suggestions.length})</h4>
+                            <div className="suggestions-list">
+                                {suggestions.map((ticker) => (
+                                    <div 
+                                        key={ticker}
+                                        className="suggestion-item"
+                                        onClick={() => onMarketSelect(ticker)}
+                                    >
+                                        {ticker}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        // Admin Order Book Component (copied from mock server)
+        const AdminOrderBook = ({ marketTicker }) => {
+            const [orderbook, setOrderbook] = useState({ bids: [], asks: [] });
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [flashingLevels, setFlashingLevels] = useState({ bids: new Set(), asks: new Set() });
+            const [updateStatus, setUpdateStatus] = useState({ 
+                type: '', 
+                timestamp: null, 
+                details: '',
+                messageCount: 0,
+                deltaCount: 0,
+                snapshotCount: 0,
+                lastDelta: null
+            });
+            
+            useEffect(() => {
+                if (!marketTicker) return;
+                
+                fetchOrderbook();
+                
+            }, [marketTicker]);
+            
+            useEffect(() => {
+                const unsubscribe = adminWS.onMessage((type, message) => {
+                    if (type === 'orderbook' && message.market_ticker === marketTicker) {
+                        const now = new Date();
+                        
+                        if (message.type === 'orderbook_snapshot' || message.type === 'initial_orderbook') {
+                            setUpdateStatus(prev => ({
+                                type: 'snapshot',
+                                timestamp: now,
+                                details: 'Full Snapshot',
+                                messageCount: prev.messageCount + 1,
+                                deltaCount: prev.deltaCount,
+                                snapshotCount: prev.snapshotCount + 1,
+                                lastDelta: null
+                            }));
+                            processOrderbookSnapshot(message.data);
+                        } else if (message.type === 'orderbook_delta') {
+                            const deltaDetails = {
+                                price: message.data.price,
+                                delta: message.data.delta,
+                                side: message.data.side,
+                                action: message.data.delta > 0 ? 'ADD' : 'REMOVE'
+                            };
+                            
+                            setUpdateStatus(prev => ({
+                                type: 'delta',
+                                timestamp: now,
+                                details: `${deltaDetails.action} ${Math.abs(deltaDetails.delta)} @ ${deltaDetails.price}¢`,
+                                messageCount: prev.messageCount + 1,
+                                deltaCount: prev.deltaCount + 1,
+                                snapshotCount: prev.snapshotCount,
+                                lastDelta: deltaDetails
+                            }));
+                            processOrderbookDelta(message.data);
+                        }
+                    }
+                });
+                
+                return unsubscribe;
+            }, [marketTicker]);
+            
+            const fetchOrderbook = async () => {
+                try {
+                    setLoading(true);
+                    const response = await fetch(`/trade-api/v2/markets/${marketTicker}/orderbook?depth=10`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        processOrderbookSnapshot(data.orderbook);
+                    } else {
+                        setError('Order book not found');
+                    }
+                    setLoading(false);
+                } catch (err) {
+                    console.error('Error fetching orderbook:', err);
+                    setError(err.message);
+                    setLoading(false);
+                }
+            };
+            
+            const processOrderbookSnapshot = (orderbookData) => {
+                const bids = [];
+                const asks = [];
+                
+                // Process YES side (Buy YES orders) - these are bids
+                const yesOrders = orderbookData.yes || [];
+                yesOrders.forEach((level) => {
+                    const price = Array.isArray(level) ? level[0] : level.price;
+                    const quantity = Array.isArray(level) ? level[1] : level.size;
+                    bids.push({ price, quantity });
+                });
+                
+                // Process NO side (Buy NO orders)
+                const noOrders = orderbookData.no || [];
+                noOrders.forEach((level) => {
+                    const price = Array.isArray(level) ? level[0] : level.price;
+                    const quantity = Array.isArray(level) ? level[1] : level.size;
+                    asks.push({ price, quantity });
+                });
+                
+                // Sort both sides descending (highest first)
+                bids.sort((a, b) => b.price - a.price);
+                asks.sort((a, b) => b.price - a.price);
+                
+                setOrderbook({ bids, asks });
+                
+                // Flash all levels briefly for snapshots
+                setFlashingLevels({ 
+                    bids: new Set(bids.map(b => b.price)), 
+                    asks: new Set(asks.map(a => a.price)) 
+                });
+                
+                setTimeout(() => {
+                    setFlashingLevels({ bids: new Set(), asks: new Set() });
+                }, 2000);
+            };
+            
+            const processOrderbookDelta = (deltaData) => {
+                const { price, delta, side } = deltaData;
+                
+                setOrderbook(prev => {
+                    const newBids = [...prev.bids];
+                    const newAsks = [...prev.asks];
+                    const newFlashingBids = new Set();
+                    const newFlashingAsks = new Set();
+                    
+                    if (side === 'yes') {
+                        // Update YES side (bids)
+                        const existingIndex = newBids.findIndex(b => b.price === price);
+                        
+                        if (delta > 0) {
+                            if (existingIndex >= 0) {
+                                newBids[existingIndex].quantity += delta;
+                            } else {
+                                newBids.push({ price, quantity: delta });
+                                newBids.sort((a, b) => b.price - a.price);
+                            }
+                            newFlashingBids.add(price);
+                        } else if (delta < 0) {
+                            if (existingIndex >= 0) {
+                                newBids[existingIndex].quantity += delta;
+                                if (newBids[existingIndex].quantity <= 0) {
+                                    newBids.splice(existingIndex, 1);
+                                } else {
+                                    newFlashingBids.add(price);
+                                }
+                            }
+                        }
+                    } else if (side === 'no') {
+                        // Update NO side (asks)
+                        const existingIndex = newAsks.findIndex(a => a.price === price);
+                        
+                        if (delta > 0) {
+                            if (existingIndex >= 0) {
+                                newAsks[existingIndex].quantity += delta;
+                            } else {
+                                newAsks.push({ price, quantity: delta });
+                                newAsks.sort((a, b) => b.price - a.price);
+                            }
+                            newFlashingAsks.add(price);
+                        } else if (delta < 0) {
+                            if (existingIndex >= 0) {
+                                newAsks[existingIndex].quantity += delta;
+                                if (newAsks[existingIndex].quantity <= 0) {
+                                    newAsks.splice(existingIndex, 1);
+                                } else {
+                                    newFlashingAsks.add(price);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Flash only the changed level
+                    if (newFlashingBids.size > 0 || newFlashingAsks.size > 0) {
+                        setFlashingLevels({ bids: newFlashingBids, asks: newFlashingAsks });
+                        
+                        setTimeout(() => {
+                            setFlashingLevels({ bids: new Set(), asks: new Set() });
+                        }, 2000);
+                    }
+                    
+                    return { bids: newBids, asks: newAsks };
+                });
+            };
+            
+            if (!marketTicker) {
+                return <div className="orderbook-empty">Select a market to view orderbook</div>;
+            }
+            
+            if (loading) return <div className="loading">Loading orderbook...</div>;
+            if (error) return <div className="error">Error loading orderbook: {error}</div>;
+            
+            return (
+                <div className="orderbook">
+                    <div className="orderbook-status">
+                        <div className="status-line">
+                            <span className={`status-type ${updateStatus.type === 'snapshot' ? 'snapshot' : 'delta'}`}>
+                                {updateStatus.type === 'snapshot' ? '📊 SNAPSHOT' : '🔄 DELTA'}
+                            </span>
+                            <span className="status-details">
+                                {updateStatus.type === 'snapshot' ? 
+                                    `Timestamp: ${updateStatus.timestamp?.toLocaleTimeString('en-US', { 
+                                        hour12: false, 
+                                        hour: '2-digit', 
+                                        minute: '2-digit', 
+                                        second: '2-digit',
+                                        fractionalSecondDigits: 3
+                                    })}` :
+                                    updateStatus.details
+                                } • Messages: {updateStatus.messageCount} • 
+                                Deltas: {updateStatus.deltaCount} • Snapshots: {updateStatus.snapshotCount}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {updateStatus.lastDelta && (
+                        <div className="delta-indicators-area">
+                            <div className={`delta-indicator delta-${updateStatus.lastDelta.side}`}>
+                                <span className="delta-side">{updateStatus.lastDelta.side.toUpperCase()}:</span>
+                                <span className="delta-action">{updateStatus.lastDelta.action}</span>
+                                <span className="delta-quantity">{Math.abs(updateStatus.lastDelta.delta)}</span>
+                                <span className="delta-price">@ {updateStatus.lastDelta.price}¢</span>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <h3>Order Book - {marketTicker}</h3>
+                    <div className="orderbook-container">
+                        <div className="orderbook-side bids">
+                            <h4>Yes (Buy)</h4>
+                            <div className="orderbook-header">
+                                <span>Price</span>
+                                <span>Quantity</span>
+                            </div>
+                            <div className="orderbook-levels">
+                                {orderbook.bids.map((level, index) => (
+                                    <div key={`bid-${index}`} className={`level bid ${flashingLevels.bids.has(level.price) ? 'flash-green' : ''}`}>
+                                        <span className="price">{level.price}¢</span>
+                                        <span className="quantity">{level.quantity}</span>
+                                    </div>
+                                ))}
+                                {orderbook.bids.length === 0 && (
+                                    <div className="no-orders">No buy orders</div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="orderbook-side asks">
+                            <h4>No (Buy)</h4>
+                            <div className="orderbook-header">
+                                <span>Price</span>
+                                <span>Quantity</span>
+                            </div>
+                            <div className="orderbook-levels">
+                                {orderbook.asks.map((level, index) => (
+                                    <div key={`ask-${index}`} className={`level ask ${flashingLevels.asks.has(level.price) ? 'flash-red' : ''}`}>
+                                        <span className="price">{level.price}¢</span>
+                                        <span className="quantity">{level.quantity}</span>
+                                    </div>
+                                ))}
+                                {orderbook.asks.length === 0 && (
+                                    <div className="no-orders">No sell orders</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Main Admin App
+        const AdminApp = () => {
+            const [connected, setConnected] = useState(false);
+            const [selectedMarket, setSelectedMarket] = useState('');
+            const [searchResults, setSearchResults] = useState([]);
+            const [subscriptionId, setSubscriptionId] = useState(null);
+            const [allMarkets, setAllMarkets] = useState([]);
+            const [connectionStatus, setConnectionStatus] = useState('Disconnected');
+            
+            useEffect(() => {
+                // Connect to admin WebSocket
+                adminWS.connect()
+                    .then(() => {
+                        setConnected(true);
+                        setConnectionStatus('Connected');
+                        
+                        // Subscribe to all markets initially
+                        const subId = adminWS.subscribe(['orderbook_snapshot', 'orderbook_delta'], '', 100);
+                        setSubscriptionId(subId);
+                        
+                        // Fetch all markets
+                        fetchAllMarkets();
+                    })
+                    .catch((error) => {
+                        console.error('Failed to connect:', error);
+                        setConnectionStatus('Connection Failed');
+                    });
+                
+                const unsubscribeConnection = adminWS.onConnectionChange((isConnected) => {
+                    setConnected(isConnected);
+                    setConnectionStatus(isConnected ? 'Connected' : 'Disconnected');
+                });
+                
+                return () => {
+                    unsubscribeConnection();
+                    if (subscriptionId) {
+                        adminWS.unsubscribe(subscriptionId);
+                    }
+                    adminWS.disconnect();
+                };
+            }, []);
+            
+            const fetchAllMarkets = async () => {
+                try {
+                    const response = await fetch('/admin/api/v1/markets?page=0&size=1000');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setAllMarkets(data.markets || []);
+                    }
+                } catch (error) {
+                    console.error('Error fetching markets:', error);
+                }
+            };
+            
+            const handleMarketSelect = (marketTicker) => {
+                setSelectedMarket(marketTicker);
+                
+                // Resubscribe to specific market
+                if (subscriptionId) {
+                    adminWS.unsubscribe(subscriptionId);
+                }
+                
+                const newSubId = adminWS.subscribe(['orderbook_snapshot', 'orderbook_delta'], marketTicker, 1);
+                setSubscriptionId(newSubId);
+            };
+            
+            const handleSearchResults = (results) => {
+                setSearchResults(results);
+            };
+            
+            return (
+                <div className="admin-app">
+                    <header className="admin-header">
+                        <h1>Order Book Rebuilder - Admin Console</h1>
+                        <div className="connection-status">
+                            <span className={`status ${connected ? 'connected' : 'disconnected'}`}>
+                                {connectionStatus}
+                            </span>
+                        </div>
+                    </header>
+                    
+                    <div className="admin-content">
+                        <div className="admin-sidebar">
+                            <MarketSearch 
+                                onMarketSelect={handleMarketSelect}
+                                onSearchResults={handleSearchResults}
+                            />
+                            
+                            <div className="markets-list">
+                                <h3>All Markets ({allMarkets.length})</h3>
+                                <div className="markets-scroll">
+                                    {allMarkets.map((market) => (
+                                        <div 
+                                            key={market.marketTicker}
+                                            className={`market-item ${selectedMarket === market.marketTicker ? 'selected' : ''}`}
+                                            onClick={() => handleMarketSelect(market.marketTicker)}
+                                        >
+                                            <div className="market-ticker">{market.marketTicker}</div>
+                                            <div className="market-status">{market.status}</div>
+                                            {market.bestYes && (
+                                                <div className="market-price">
+                                                    Y: {market.bestYes.price}¢ | N: {market.bestNo?.price || '-'}¢
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="admin-main">
+                            <AdminOrderBook marketTicker={selectedMarket} />
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        ReactDOM.render(<AdminApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>

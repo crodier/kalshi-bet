@@ -43,7 +43,22 @@ This is a mock implementation of Kalshi's binary options trading platform, built
 
 ## Real-Time Broadcasting Architecture
 
-### Order Book Updates
+### Dual WebSocket System
+
+The system uses **TWO separate WebSocket endpoints** for different purposes:
+
+1. **Market Data WebSocket** (`/trade-api/ws/v2`)
+   - Public market data (orderbook, trades, ticker updates)
+   - Anyone can subscribe to market data
+   - Channels: `orderbook_snapshot`, `orderbook_delta`, `trade`, `ticker`
+
+2. **Internal Orders WebSocket** (`/trade-api/ws/internal-orders`)
+   - Private user order updates
+   - User-specific order information
+   - Channels: `orders`
+   - Should only show orders for the authenticated user
+
+### Order Book Updates (Public WebSocket)
 The system uses an event-driven architecture with broadcast notifications:
 
 1. **OrderBookEventPublisher**: Central event hub
@@ -52,19 +67,29 @@ The system uses an event-driven architecture with broadcast notifications:
    - Events include: OrderPlaced, OrderCanceled, OrderMatched, OrderBookUpdated
 
 2. **WebSocket Broadcasting**:
-   - All order book changes are broadcast via STOMP WebSocket
-   - Topic structure: `/topic/orderbook/{marketTicker}`
+   - All order book changes are broadcast via public WebSocket
+   - Message types: `orderbook_snapshot`, `orderbook_delta`
    - Clients receive full order book snapshots on each update
    - No incremental updates - always full book state
 
 3. **Market Data Updates**:
-   - Price changes broadcast to `/topic/market/{marketTicker}`
+   - Price changes broadcast as `ticker` messages
    - Includes best bid/ask and last trade price
    - Updates triggered by order matches
 
+### Order Updates (Internal Orders WebSocket)
+1. **OrderUpdateEventPublisher**: Publishes user-specific order events
+2. **Internal Orders WebSocket**: Broadcasts to authenticated users only
+3. **Message type**: `order_update`
+4. **Subscription**: Users subscribe to `orders` channel for specific markets
+
 ### WebSocket Message Flow
 ```
-Order Placed → OrderBookService → OrderBookEventPublisher → WebSocketPublisher → All Connected Clients
+Public Market Data:
+Order Placed → OrderBookService → OrderBookEventPublisher → WebSocketPublisher → All Market Subscribers
+
+Private Order Updates:
+Order Placed → OrderBookService → OrderUpdateEventPublisher → InternalOrdersWebSocket → Order Owner Only
 ```
 
 ## Key Services

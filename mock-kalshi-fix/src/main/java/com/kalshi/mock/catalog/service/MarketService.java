@@ -41,8 +41,6 @@ public class MarketService {
             market.setMarketType(MarketType.valueOf(rs.getString("market_type").toUpperCase()));
             market.setTitle(rs.getString("title"));
             market.setSubtitle(rs.getString("subtitle"));
-            market.setYesSubtitle(rs.getString("yes_subtitle"));
-            market.setNoSubtitle(rs.getString("no_subtitle"));
             
             // Handle BIGINT timestamps stored as milliseconds
             Long openTimeMillis = rs.getLong("open_time");
@@ -75,45 +73,53 @@ public class MarketService {
             
             market.setStatus(MarketStatus.valueOf(rs.getString("status").toUpperCase()));
             
-            // Price information
-            market.setYesBid(rs.getBigDecimal("yes_bid"));
-            market.setYesAsk(rs.getBigDecimal("yes_ask"));
-            market.setNoBid(rs.getBigDecimal("no_bid"));
-            market.setNoAsk(rs.getBigDecimal("no_ask"));
-            market.setLastPrice(rs.getBigDecimal("last_price"));
-            market.setPreviousYesBid(rs.getBigDecimal("previous_yes_bid"));
-            market.setPreviousYesAsk(rs.getBigDecimal("previous_yes_ask"));
-            market.setPreviousPrice(rs.getBigDecimal("previous_price"));
+            // Price information (only fields that exist in DB)
+            Integer yesBid = rs.getInt("yes_bid");
+            if (!rs.wasNull()) market.setYesBid(new BigDecimal(yesBid));
+            
+            Integer yesAsk = rs.getInt("yes_ask");
+            if (!rs.wasNull()) market.setYesAsk(new BigDecimal(yesAsk));
+            
+            Integer noBid = rs.getInt("no_bid");
+            if (!rs.wasNull()) market.setNoBid(new BigDecimal(noBid));
+            
+            Integer noAsk = rs.getInt("no_ask");
+            if (!rs.wasNull()) market.setNoAsk(new BigDecimal(noAsk));
+            
+            Integer lastPrice = rs.getInt("last_price");
+            if (!rs.wasNull()) market.setLastPrice(new BigDecimal(lastPrice));
             
             // Volume information
             market.setVolume(rs.getLong("volume"));
             market.setVolume24h(rs.getLong("volume_24h"));
-            market.setLiquidity(rs.getBigDecimal("liquidity"));
+            
+            Integer liquidity = rs.getInt("liquidity");
+            if (!rs.wasNull()) market.setLiquidity(new BigDecimal(liquidity));
+            
             market.setOpenInterest(rs.getLong("open_interest"));
             
             // Financial information
-            market.setNotionalValue(rs.getBigDecimal("notional_value"));
-            market.setRiskLimitCents(rs.getLong("risk_limit_cents"));
+            Integer notionalValue = rs.getInt("notional_value");
+            if (!rs.wasNull()) market.setNotionalValue(new BigDecimal(notionalValue));
             
-            // Market details
+            Integer riskLimitCents = rs.getInt("risk_limit_cents");
+            if (!rs.wasNull()) market.setRiskLimitCents((long) riskLimitCents);
+            
+            // Market details (only fields that exist)
             market.setStrikeType(rs.getString("strike_type"));
-            market.setFloorStrike(rs.getBigDecimal("floor_strike"));
-            market.setCapStrike(rs.getBigDecimal("cap_strike"));
-            market.setResult(rs.getString("result"));
-            market.setCanCloseEarly(rs.getBoolean("can_close_early"));
-            market.setExpirationValue(rs.getString("expiration_value"));
-            market.setCategory(rs.getString("category"));
+            
+            Integer floorStrike = rs.getInt("floor_strike");
+            if (!rs.wasNull()) market.setFloorStrike(new BigDecimal(floorStrike));
+            
+            Integer capStrike = rs.getInt("cap_strike");
+            if (!rs.wasNull()) market.setCapStrike(new BigDecimal(capStrike));
             
             // Rules
             market.setRulesPrimary(rs.getString("rules_primary"));
             market.setRulesSecondary(rs.getString("rules_secondary"));
             
-            // Additional metadata
+            // Additional metadata (only fields that exist)
             market.setResponsePriceUnits(rs.getString("response_price_units"));
-            market.setSettlementTimerSeconds(rs.getInt("settlement_timer_seconds"));
-            market.setSettlementSource(rs.getString("settlement_source"));
-            market.setCustomStrike(rs.getString("custom_strike"));
-            market.setIsDeactivated(rs.getBoolean("is_deactivated"));
             
             // Handle timestamp fields (if they exist)
             try {

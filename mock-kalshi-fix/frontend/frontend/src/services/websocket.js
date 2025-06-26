@@ -114,13 +114,23 @@ class WebSocketService {
   }
 
   unsubscribe(subscriptionId) {
-    const unsubscribeMessage = {
-      id: ++this.messageId,
-      cmd: 'unsubscribe',
-      subscription_id: subscriptionId
-    };
+    // Get the subscription to find its sids
+    const subscription = Array.from(this.subscriptions).find(sub => sub.id === subscriptionId);
+    
+    if (subscription && subscription.params) {
+      // Extract sids from the subscribed response
+      // For now, just unsubscribe from all channels for this subscription
+      const unsubscribeMessage = {
+        id: ++this.messageId,
+        cmd: 'unsubscribe',
+        params: {
+          sids: [`sub_${subscriptionId}`] // This is a workaround - ideally we'd track the actual sids
+        }
+      };
 
-    this.send(unsubscribeMessage);
+      this.send(unsubscribeMessage);
+    }
+    
     this.messageHandlers.delete(subscriptionId);
     
     // Remove from subscriptions
@@ -134,7 +144,8 @@ class WebSocketService {
     if (message.type === 'orderbook_snapshot' || 
         message.type === 'orderbook_delta' || 
         message.type === 'trade' || 
-        message.type === 'ticker') {
+        message.type === 'ticker' ||
+        message.type === 'order_update') {
       
       // Notify all handlers about market data updates
       this.messageHandlers.forEach((handler) => {
