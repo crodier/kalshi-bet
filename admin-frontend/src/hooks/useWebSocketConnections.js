@@ -20,6 +20,18 @@ export const useWebSocketConnections = (environment) => {
       });
     }
     
+    if (message.type === 'order_update') {
+      setLastExecution({
+        timestamp: Date.now(),
+        market: message.msg?.market_ticker || 'Unknown',
+        action: `${message.msg?.action} ${message.msg?.side}`.toUpperCase(),
+        side: message.msg?.side || 'unknown',
+        price: message.msg?.price || 0,
+        quantity: message.msg?.original_quantity || 0,
+        source: 'Mock Server (Order)'
+      });
+    }
+    
     if (message.type === 'orderbook_snapshot' || message.type === 'orderbook_delta') {
       const ticker = message.msg?.market_ticker;
       if (ticker) {

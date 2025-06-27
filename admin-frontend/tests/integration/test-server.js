@@ -185,6 +185,41 @@ class TestWebSocketServer {
     this.broadcast(message);
   }
 
+  sendOrderUpdate() {
+    const statuses = ['open', 'filled', 'partially_filled', 'canceled'];
+    const sides = ['yes', 'no'];
+    const actions = ['buy', 'sell'];
+    
+    const originalQty = 10 + Math.floor(Math.random() * 90);
+    const filledQty = Math.floor(Math.random() * originalQty);
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    const message = {
+      type: 'order_update',
+      seq: this.sequenceNumber++,
+      msg: {
+        order_id: `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        user_id: `user_${Math.floor(Math.random() * 1000)}`,
+        market_ticker: 'TEST_MARKET',
+        side: sides[Math.floor(Math.random() * sides.length)],
+        action: actions[Math.floor(Math.random() * actions.length)],
+        type: 'limit',
+        original_quantity: originalQty,
+        filled_quantity: status === 'filled' ? originalQty : filledQty,
+        remaining_quantity: originalQty - filledQty,
+        price: 45 + Math.floor(Math.random() * 10),
+        avg_fill_price: filledQty > 0 ? 45 + Math.floor(Math.random() * 10) : null,
+        status: status,
+        time_in_force: 'GTC',
+        created_time: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+        updated_time: new Date().toISOString(),
+        update_type: Math.random() > 0.7 ? 'NEW' : 'UPDATE'
+      }
+    };
+
+    this.broadcast(message);
+  }
+
   startPeriodicMessages() {
     let messageCount = 0;
     
@@ -192,7 +227,7 @@ class TestWebSocketServer {
       messageCount++;
       
       // Send different types of messages in sequence
-      switch (messageCount % 10) {
+      switch (messageCount % 12) {
         case 0:
           this.sendOrderBookSnapshot();
           break;
@@ -212,6 +247,10 @@ class TestWebSocketServer {
           break;
         case 7:
           this.sendExecutionReport();
+          break;
+        case 8:
+        case 9:
+          this.sendOrderUpdate();
           break;
         default:
           this.sendOrderBookDelta();

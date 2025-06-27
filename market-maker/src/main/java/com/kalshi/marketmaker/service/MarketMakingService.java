@@ -92,14 +92,37 @@ public class MarketMakingService {
                 .flatMapMany(response -> {
                     JsonNode orders = response.get("orders");
                     List<String> orderIds = new ArrayList<>();
+                    long thirtyMinutesAgo = System.currentTimeMillis() - (30 * 60 * 1000);
+                    
                     if (orders != null && orders.isArray()) {
                         orders.forEach(order -> {
                             JsonNode orderIdNode = order.get("order_id");
+                            JsonNode createdTimeNode = order.get("created_time");
+                            
                             if (orderIdNode != null) {
-                                orderIds.add(orderIdNode.asText());
+                                // Check if order is older than 30 minutes
+                                if (createdTimeNode != null) {
+                                    long createdTime = createdTimeNode.asLong();
+                                    if (createdTime < thirtyMinutesAgo) {
+                                        log.info("Canceling old order {}: created {} minutes ago", 
+                                                orderIdNode.asText(), 
+                                                (System.currentTimeMillis() - createdTime) / (60 * 1000));
+                                        orderIds.add(orderIdNode.asText());
+                                    } else {
+                                        log.debug("Keeping recent order {}: created {} seconds ago", 
+                                                orderIdNode.asText(), 
+                                                (System.currentTimeMillis() - createdTime) / 1000);
+                                    }
+                                } else {
+                                    // If no timestamp, cancel it as a safety measure
+                                    log.warn("Order {} has no timestamp, canceling as safety measure", orderIdNode.asText());
+                                    orderIds.add(orderIdNode.asText());
+                                }
                             }
                         });
                     }
+                    
+                    log.info("Found {} orders to cancel (older than 30 minutes)", orderIds.size());
                     return Flux.fromIterable(orderIds);
                 })
                 .flatMap(orderId -> kalshiApiClient.cancelOrder(orderId)

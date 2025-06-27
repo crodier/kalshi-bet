@@ -1,10 +1,16 @@
+import { useState } from 'react';
 import { EnvironmentSelector } from './components/admin/EnvironmentSelector.jsx';
 import { SystemHealthDashboard } from './components/admin/SystemHealthDashboard.jsx';
+import { MarketsAdmin } from './components/admin/MarketsAdmin.jsx';
+import { OrdersPanel } from './components/grids/OrdersPanel.jsx';
 import { useEnvironmentConfig } from './hooks/useEnvironmentConfig.js';
 import { useWebSocketConnections } from './hooks/useWebSocketConnections.js';
 import './App.css';
 
 function App() {
+  const [selectedMarket, setSelectedMarket] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
   const {
     currentEnvironment,
     environmentConfig,
@@ -52,9 +58,25 @@ function App() {
           marketData={marketData}
         />
 
-        {/* TODO: Add Markets Admin Component */}
-        {/* TODO: Add Order Book Display Panel */}
-        {/* TODO: Add Executions Grid */}
+        <MarketsAdmin
+          selectedMarket={selectedMarket}
+          onMarketSelect={setSelectedMarket}
+        />
+
+        {selectedMarket && (
+          <div className="trading-panels">
+            <div className="orders-section">
+              <OrdersPanel
+                selectedMarket={selectedMarket}
+                connections={connections}
+                onOrderSelect={setSelectedOrder}
+              />
+            </div>
+            
+            {/* TODO: Add Order Book Display Panel */}
+            {/* TODO: Add Executions Grid */}
+          </div>
+        )}
       </main>
     </div>
   );

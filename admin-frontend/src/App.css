@@ -44,6 +44,31 @@ body {
   width: 100%;
 }
 
+/* Trading panels layout */
+.trading-panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.orders-section {
+  min-height: 400px;
+}
+
+/* Future: Order book and executions panels */
+@media (min-width: 1200px) {
+  .trading-panels {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1600px) {
+  .trading-panels {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .app-main {
