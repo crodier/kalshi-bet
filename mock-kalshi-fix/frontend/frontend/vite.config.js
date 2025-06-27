@@ -8,7 +8,14 @@ export default defineConfig({
     host: 'localhost',
     port: 5173,
     strictPort: false,
-    open: false
+    open: false,
+    proxy: {
+      '/trade-api': {
+        target: 'http://localhost:9090',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
   test: {
     globals: true,
