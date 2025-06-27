@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EnvironmentSelector } from './components/admin/EnvironmentSelector.jsx';
 import { SystemHealthDashboard } from './components/admin/SystemHealthDashboard.jsx';
 import { MarketsAdmin } from './components/admin/MarketsAdmin.jsx';
 import { OrdersPanel } from './components/grids/OrdersPanel.jsx';
+import { ExecutionsGrid } from './components/grids/ExecutionsGrid.jsx';
 import { useEnvironmentConfig } from './hooks/useEnvironmentConfig.js';
 import { useWebSocketConnections } from './hooks/useWebSocketConnections.js';
 import './App.css';
@@ -10,6 +11,7 @@ import './App.css';
 function App() {
   const [selectedMarket, setSelectedMarket] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [executionReports, setExecutionReports] = useState([]);
 
   const {
     currentEnvironment,
@@ -28,6 +30,36 @@ function App() {
     marketData,
     orderBooks
   } = useWebSocketConnections(environmentConfig);
+
+  // Track execution reports
+  useEffect(() => {
+    if (lastExecution && lastExecution.betOrderId) {
+      setExecutionReports(prev => {
+        // Create a mock ExecutionReport from lastExecution
+        const execReport = {
+          execID: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          orderID: lastExecution.orderId || '',
+          betOrderId: lastExecution.betOrderId,
+          execType: lastExecution.action?.includes('NEW') ? 'NEW' : 
+                    lastExecution.action?.includes('CANCELED') ? 'CANCELED' :
+                    lastExecution.action?.includes('FILLED') ? 'TRADE' : 'ORDER_STATUS',
+          ordStatus: lastExecution.status || 'NEW',
+          side: lastExecution.side?.toUpperCase() || 'BUY',
+          symbol: lastExecution.market,
+          quantity: lastExecution.quantity,
+          price: lastExecution.price,
+          cumQty: lastExecution.quantity,
+          avgPx: lastExecution.price,
+          timestamp: lastExecution.timestamp,
+          source: lastExecution.source,
+          text: lastExecution.action
+        };
+        
+        // Add to beginning of array (most recent first)
+        return [execReport, ...prev.slice(0, 999)]; // Keep last 1000
+      });
+    }
+  }, [lastExecution]);
 
   const connections = {
     mockServer,
@@ -63,20 +95,33 @@ function App() {
           onMarketSelect={setSelectedMarket}
         />
 
-        {selectedMarket && (
-          <div className="trading-panels">
-            <div className="orders-section">
-              <OrdersPanel
-                selectedMarket={selectedMarket}
-                connections={connections}
-                onOrderSelect={setSelectedOrder}
-              />
-            </div>
-            
-            {/* TODO: Add Order Book Display Panel */}
-            {/* TODO: Add Executions Grid */}
+        <div className="trading-panels">
+          <div className="orders-section">
+            <OrdersPanel
+              selectedMarket={selectedMarket}
+              connections={connections}
+              onOrderSelect={setSelectedOrder}
+              executionReports={executionReports}
+            />
           </div>
-        )}
+          
+          {/* TODO: Add Order Book Display Panel */}
+        </div>
+
+        <div className="executions-section">
+          <ExecutionsGrid 
+            executions={executionReports}
+            selectedOrder={selectedOrder}
+            onClearOrderFilter={() => setSelectedOrder(null)}
+            onExecutionClick={(exec) => {
+              console.log('Execution clicked:', exec);
+              // Could select the market or order associated with this execution
+              if (exec.symbol) {
+                setSelectedMarket(exec.symbol);
+              }
+            }}
+          />
+        </div>
       </main>
     </div>
   );

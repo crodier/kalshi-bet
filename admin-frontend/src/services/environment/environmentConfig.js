@@ -1,9 +1,9 @@
 export const environmentConfigs = {
   Local: {
-    mockServerUrl: 'ws://localhost:9090/ws',
-    marketDataUrl: 'ws://localhost:8080/ws',
-    orderRebuilderUrl: 'ws://localhost:8081/ws',
-    tempOrdersUrl: 'ws://localhost:8082/ws'
+    mockServerUrl: 'ws://localhost:9090/trade-api/ws/v2',
+    marketDataUrl: 'ws://localhost:8084/ws/market-data', // Not running currently
+    orderRebuilderUrl: 'ws://localhost:8085/ws/orderbook', // Legacy orderbook WebSocket  
+    tempOrdersUrl: 'ws://localhost:8080/ws/orders' // Real-time order updates stream
   },
   Test: {
     mockServerUrl: 'ws://localhost:19090/ws',

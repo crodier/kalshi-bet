@@ -29,7 +29,9 @@ public class MarketDataProcessor {
             
             // Process the market data and create a new InternalOrderBook
             InternalOrderBook newOrderBook = null;
-            JsonNode payload = envelope.getPayload();
+            // Convert Kotlin JsonElement to Jackson JsonNode
+            String payloadJson = envelope.getPayload().toString();
+            JsonNode payload = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payloadJson);
             
             switch (channel) {
                 case "orderbook_snapshot":

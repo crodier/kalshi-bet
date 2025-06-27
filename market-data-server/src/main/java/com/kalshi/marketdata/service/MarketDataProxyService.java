@@ -2,7 +2,7 @@ package com.kalshi.marketdata.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kalshi.marketdata.config.KafkaErrorAlertService;
-import com.kalshi.marketdata.websocket.KalshiWebSocketClient;
+import com.kalshi.marketdata.websocket.KalshiSpringWebSocketClient;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +13,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +52,8 @@ public class MarketDataProxyService {
     @Value("${kafka.topic.error-alert}")
     private String errorAlertTopic;
     
-    private KalshiWebSocketClient webSocketClient;
+    @Autowired
+    private KalshiSpringWebSocketClient webSocketClient;
     private volatile boolean shouldReconnect = true;
     private final AtomicInteger connectionAttempts = new AtomicInteger(0);
     private volatile boolean isConnecting = false;
@@ -69,7 +69,7 @@ public class MarketDataProxyService {
     public void shutdown() {
         log.info("Shutting down Market Data Proxy Service");
         shouldReconnect = false;
-        if (webSocketClient != null && !webSocketClient.isClosed()) {
+        if (webSocketClient != null && webSocketClient.isConnected()) {
             webSocketClient.close();
         }
     }
@@ -90,11 +90,9 @@ public class MarketDataProxyService {
         try {
             log.info("Attempting WebSocket connection #{} to: {}", attempt, websocketUrl);
             
-            // Create WebSocket client
-            URI uri = new URI(websocketUrl);
-            webSocketClient = new KalshiWebSocketClient(uri, kafkaTemplate, objectMapper, orderBookManager, kafkaTopic);
-            
-            webSocketClient.connect();
+            // Connect to WebSocket
+            CompletableFuture<Void> connectFuture = webSocketClient.connect(websocketUrl);
+            connectFuture.get(10, TimeUnit.SECONDS);
             
             // Wait for connection
             if (webSocketClient.waitForConnection(10, TimeUnit.SECONDS)) {
@@ -162,7 +160,7 @@ public class MarketDataProxyService {
      */
     @Scheduled(fixedDelay = 30000) // Check every 30 seconds
     public void checkConnectionHealth() {
-        if (shouldReconnect && (webSocketClient == null || webSocketClient.isClosed()) && !isConnecting) {
+        if (shouldReconnect && (webSocketClient == null || !webSocketClient.isConnected()) && !isConnecting) {
             log.info("WebSocket connection lost, attempting to reconnect");
             connectAndSubscribeAsync();
         }
@@ -173,7 +171,7 @@ public class MarketDataProxyService {
      */
     @Scheduled(fixedDelay = 300000) // Every 5 minutes
     public void refreshMarketSubscriptions() {
-        if (webSocketClient != null && !webSocketClient.isClosed()) {
+        if (webSocketClient != null && webSocketClient.isConnected()) {
             log.info("Refreshing market subscriptions");
             
             try {

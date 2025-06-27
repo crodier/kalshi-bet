@@ -2,8 +2,10 @@ package com.kalshi.marketdata.service;
 
 import com.kalshi.marketdata.model.OrderBookState;
 import com.fbg.api.kalshi.InternalOrderBook;
+import com.kalshi.marketdata.event.OrderBookUpdateEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -27,6 +29,9 @@ public class OrderBookManager {
     
     @Autowired
     private OrderBookConverter orderBookConverter;
+    
+    @Autowired(required = false)
+    private ApplicationEventPublisher eventPublisher;
     
     /**
      * Process an incoming WebSocket message and determine if it should be published

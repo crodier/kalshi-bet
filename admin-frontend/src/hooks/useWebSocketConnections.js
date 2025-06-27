@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useIndependentWebSocket } from '../services/websocket/useIndependentWebSocket.js';
+import { orderUpdateToExecutionReport, parseExecutionReport } from '../utils/kalshi-fix-utils.js';
 
 export const useWebSocketConnections = (environment) => {
   const [lastExecution, setLastExecution] = useState(null);
   const [marketData, setMarketData] = useState({});
   const [orderBooks, setOrderBooks] = useState({});
+  const [subscribedMarkets, setSubscribedMarkets] = useState(new Set());
 
   // Mock Server WebSocket
   const handleMockServerMessage = useCallback((message) => {
@@ -64,7 +66,9 @@ export const useWebSocketConnections = (environment) => {
   }, []);
 
   const handleOrderRebuilderMessage = useCallback((message) => {
-    if (message.type === 'orderbook_snapshot') {
+    if (message.type === 'welcome') {
+      console.log('Order Book Rebuilder connected:', message.message);
+    } else if (message.type === 'orderbook_snapshot') {
       const ticker = message.market_ticker;
       if (ticker) {
         setOrderBooks(prev => ({
@@ -80,14 +84,24 @@ export const useWebSocketConnections = (environment) => {
   }, []);
 
   const handleTempOrdersMessage = useCallback((message) => {
-    if (message.type === 'execution_report') {
+    // Handle temp-orders WebSocket messages based on spec
+    if (message.type === 'SUBSCRIPTION_CONFIRMED') {
+      console.log('Temp Orders subscription confirmed:', message.message);
+    } else if (message.type === 'ORDER_UPDATE' && message.data) {
+      // Convert the order update to an ExecutionReport-like format
+      const execReportLike = orderUpdateToExecutionReport(message.data);
+      const parsedExec = parseExecutionReport(execReportLike);
+      
       setLastExecution({
         timestamp: Date.now(),
-        market: message.market_ticker || 'Unknown',
-        action: message.action || 'ORDER',
-        side: message.side || 'unknown', 
-        price: message.price || 0,
-        quantity: message.quantity || 0,
+        market: parsedExec.symbol || 'Unknown',
+        action: `${message.data.event.replace('_', ' ')}`,
+        side: parsedExec.side || 'unknown',
+        price: parsedExec.lastPrice || parsedExec.avgPrice || 0,
+        quantity: parsedExec.lastQty || parsedExec.filledQty || 0,
+        status: parsedExec.status,
+        orderId: parsedExec.orderId,
+        betOrderId: parsedExec.betOrderId,
         source: 'Temp Orders'
       });
     }
@@ -105,13 +119,59 @@ export const useWebSocketConnections = (environment) => {
 
   const orderRebuilder = useIndependentWebSocket(environment?.orderRebuilderUrl, {
     onMessage: handleOrderRebuilderMessage,
+    onConnect: () => {
+      // Subscribe to all markets on connect
+      console.log('Order Book Rebuilder connected, subscribing to all markets');
+      orderRebuilder.sendMessage({
+        type: 'subscribe',
+        market: 'ALL', // Subscribe to all markets
+        allChanges: false
+      });
+    },
     reconnectInterval: 5000
   });
 
   const tempOrders = useIndependentWebSocket(environment?.tempOrdersUrl, {
     onMessage: handleTempOrdersMessage,
+    onConnect: () => {
+      // Subscribe to order updates on connect
+      console.log('Temp Orders connected, subscribing to order updates');
+      tempOrders.sendMessage({
+        action: 'subscribe',
+        type: 'orders'
+      });
+    },
     reconnectInterval: 10000
   });
+
+  // Subscribe to a specific market for order book rebuilder
+  const subscribeToMarket = useCallback((market) => {
+    if (orderRebuilder.isConnected && market) {
+      console.log(`Subscribing to market: ${market}`);
+      orderRebuilder.sendMessage({
+        type: 'subscribe',
+        market: market,
+        allChanges: false
+      });
+      setSubscribedMarkets(prev => new Set(prev).add(market));
+    }
+  }, [orderRebuilder]);
+
+  // Unsubscribe from a specific market
+  const unsubscribeFromMarket = useCallback((market) => {
+    if (orderRebuilder.isConnected && market) {
+      console.log(`Unsubscribing from market: ${market}`);
+      orderRebuilder.sendMessage({
+        type: 'unsubscribe',
+        market: market
+      });
+      setSubscribedMarkets(prev => {
+        const next = new Set(prev);
+        next.delete(market);
+        return next;
+      });
+    }
+  }, [orderRebuilder]);
 
   return {
     mockServer,
@@ -120,6 +180,9 @@ export const useWebSocketConnections = (environment) => {
     tempOrders,
     lastExecution,
     marketData,
-    orderBooks
+    orderBooks,
+    subscribedMarkets,
+    subscribeToMarket,
+    unsubscribeFromMarket
   };
 };

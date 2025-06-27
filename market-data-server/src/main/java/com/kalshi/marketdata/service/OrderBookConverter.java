@@ -214,7 +214,7 @@ public class OrderBookConverter {
             levelData.put("lastUpdateTimestamp", level.getLastUpdateTimestamp());
             levelData.put("lastUpdateType", level.getLastUpdateType().toString());
             levelData.put("age", level.getAgeMillis());
-            levelData.put("isStale", level.isStale());
+            levelData.put("isStale", level.isStale(30000L));
             yesLevels.put(entry.getKey().toString(), levelData);
         }
         yesSide.put("levels", yesLevels);
@@ -231,7 +231,7 @@ public class OrderBookConverter {
             levelData.put("lastUpdateTimestamp", level.getLastUpdateTimestamp());
             levelData.put("lastUpdateType", level.getLastUpdateType().toString());
             levelData.put("age", level.getAgeMillis());
-            levelData.put("isStale", level.isStale());
+            levelData.put("isStale", level.isStale(30000L));
             noLevels.put(entry.getKey().toString(), levelData);
         }
         noSide.put("levels", noLevels);

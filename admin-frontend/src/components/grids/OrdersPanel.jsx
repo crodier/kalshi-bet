@@ -1,129 +1,171 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
+import { formatOrderStatus, orderUpdateToExecutionReport } from '../../utils/kalshi-fix-utils.js';
 import './OrdersPanel.css';
 
 export const OrdersPanel = ({ 
   selectedMarket, 
   connections,
-  onOrderSelect 
+  onOrderSelect,
+  executionReports = [] 
 }) => {
-  const [rowData, setRowData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [orders, setOrders] = useState(new Map()); // Map of betOrderId -> order
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [orderStats, setOrderStats] = useState({
     total: 0,
-    open: 0,
+    new: 0,
     filled: 0,
-    canceled: 0
+    partiallyFilled: 0,
+    canceled: 0,
+    rejected: 0
   });
 
   const gridRef = useRef(null);
 
-  // Column definitions following the mock server pattern
+  // Column definitions with FIX domain model fields
   const columnDefs = [
     { 
       headerName: 'Order ID', 
-      field: 'order_id', 
+      field: 'betOrderId', 
       width: 120,
       pinned: 'left',
       cellRenderer: (params) => {
         const orderId = params.value;
         return orderId ? orderId.substring(0, 8) + '...' : '';
-      }
+      },
+      tooltipField: 'betOrderId'
     },
     { 
       headerName: 'Market', 
-      field: 'market_ticker', 
-      width: 100,
+      field: 'symbol', 
+      width: 150,
       cellClass: 'market-cell'
     },
     { 
       headerName: 'Side', 
       field: 'side', 
-      width: 60,
-      cellRenderer: (params) => params.value?.toUpperCase(),
-      cellClass: (params) => `side-${params.value}`
-    },
-    { 
-      headerName: 'Action', 
-      field: 'action', 
       width: 70,
-      cellRenderer: (params) => params.value?.toUpperCase(),
-      cellClass: (params) => `action-${params.value}`
+      cellClass: (params) => params.value === 'BUY' ? 'buy-side' : 'sell-side'
     },
     { 
       headerName: 'Status', 
-      field: 'status', 
-      width: 100,
-      cellRenderer: (params) => params.value?.replace('_', ' ').toUpperCase(),
-      cellClass: (params) => `status-${params.value?.replace('_', '-')}`
+      field: 'ordStatus', 
+      width: 110,
+      cellRenderer: (params) => {
+        const status = formatOrderStatus(params.value);
+        return `
+          <div class="status-cell">
+            <span class="status-icon">${status.icon}</span>
+            <span class="status-label" style="color: ${status.color}">${status.label}</span>
+          </div>
+        `;
+      }
     },
     { 
       headerName: 'Type', 
-      field: 'type', 
+      field: 'ordType', 
       width: 80,
-      cellRenderer: (params) => params.value?.toUpperCase()
+      valueFormatter: (params) => {
+        const typeMap = { 'MARKET': 'MKT', 'LIMIT': 'LMT' };
+        return typeMap[params.value] || params.value;
+      }
+    },
+    { 
+      headerName: 'TIF', 
+      field: 'timeInForce', 
+      width: 60,
+      tooltipField: 'timeInForce'
     },
     { 
       headerName: 'Price', 
       field: 'price', 
       width: 80,
-      cellRenderer: (params) => {
-        const price = params.value;
-        return price !== null && price !== undefined ? `${price}¢` : '-';
-      },
-      cellClass: 'price-cell'
+      type: 'numericColumn',
+      cellClass: 'price-cell',
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        return params.value < 1 ? `${(params.value * 100).toFixed(0)}¢` : `$${params.value.toFixed(2)}`;
+      }
     },
     { 
-      headerName: 'Orig Qty', 
-      field: 'original_quantity', 
-      width: 90,
+      headerName: 'Qty', 
+      field: 'orderQty', 
+      width: 80,
+      type: 'numericColumn',
       cellClass: 'qty-cell'
     },
     { 
       headerName: 'Filled', 
-      field: 'filled_quantity', 
+      field: 'cumQty', 
       width: 80,
+      type: 'numericColumn',
       cellClass: (params) => {
         const filled = params.value || 0;
-        const original = params.data.original_quantity || 0;
+        const original = params.data.orderQty || 0;
         if (filled === 0) return 'qty-none';
         if (filled === original) return 'qty-full';
         return 'qty-partial';
       }
     },
     { 
-      headerName: 'Remaining', 
-      field: 'remaining_quantity', 
-      width: 100,
+      headerName: 'Leaves', 
+      field: 'leavesQty', 
+      width: 80,
+      type: 'numericColumn',
       cellClass: 'qty-cell'
     },
     { 
-      headerName: 'Avg Fill Price', 
-      field: 'avg_fill_price', 
-      width: 120,
-      cellRenderer: (params) => {
-        const price = params.value;
-        return price !== null && price !== undefined ? `${price}¢` : '-';
-      },
-      cellClass: 'price-cell'
+      headerName: 'Avg Price', 
+      field: 'avgPx', 
+      width: 100,
+      type: 'numericColumn',
+      cellClass: 'price-cell',
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        return params.value < 1 ? `${(params.value * 100).toFixed(1)}¢` : `$${params.value.toFixed(3)}`;
+      }
     },
     { 
       headerName: 'Created', 
-      field: 'created_time', 
+      field: 'transactTime', 
       width: 120,
-      cellRenderer: (params) => {
-        const timestamp = params.value;
-        return timestamp ? new Date(timestamp).toLocaleTimeString() : '';
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        return new Date(params.value).toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
       }
     },
     { 
       headerName: 'Updated', 
-      field: 'updated_time', 
+      field: 'lastUpdateTime', 
       width: 120,
-      cellRenderer: (params) => {
-        const timestamp = params.value;
-        return timestamp ? new Date(timestamp).toLocaleTimeString() : '';
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        return new Date(params.value).toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
       }
+    },
+    { 
+      headerName: 'ClOrdID', 
+      field: 'clOrdID', 
+      width: 150,
+      hide: true, // Hidden by default, can be shown via column menu
+      tooltipField: 'clOrdID'
+    },
+    { 
+      headerName: 'Exchange ID', 
+      field: 'orderID', 
+      width: 120,
+      hide: true,
+      tooltipField: 'orderID'
     }
   ];
 
@@ -131,135 +173,143 @@ export const OrdersPanel = ({
     sortable: true,
     filter: true,
     resizable: true,
-    suppressMenu: true
+    suppressMenu: false,
+    floatingFilter: true
   };
 
-  // Handle WebSocket order updates from mock server
-  const handleOrderUpdate = useCallback((message) => {
-    if (message.type !== 'order_update') return;
-    
-    const orderUpdate = message.msg;
-    if (!orderUpdate || orderUpdate.market_ticker !== selectedMarket) return;
-
-    setRowData(prevData => {
-      const existingIndex = prevData.findIndex(row => row.order_id === orderUpdate.order_id);
-      
-      if (existingIndex >= 0) {
-        // Update existing order
-        const updatedData = [...prevData];
-        updatedData[existingIndex] = {
-          ...updatedData[existingIndex],
-          ...orderUpdate,
-          updated_time: new Date().toISOString(),
-          update_type: orderUpdate.update_type || 'UPDATE'
-        };
-        
-        // Flash the updated row
-        setTimeout(() => {
-          if (gridRef.current?.api) {
-            gridRef.current.api.flashCells({
-              rowNodes: [gridRef.current.api.getRowNode(orderUpdate.order_id)]
-            });
-          }
-        }, 100);
-        
-        return updatedData;
-      } else {
-        // Add new order
-        const newOrder = { 
-          ...orderUpdate, 
-          created_time: new Date().toISOString(),
-          updated_time: new Date().toISOString(),
-          update_type: 'NEW'
-        };
-        return [newOrder, ...prevData];
-      }
-    });
-  }, [selectedMarket]);
-
-  // Subscribe to WebSocket updates when market changes
+  // Process execution reports into orders
   useEffect(() => {
-    if (!selectedMarket || !connections.mockServer.isConnected) {
-      setRowData([]);
-      return;
-    }
+    const ordersMap = new Map();
+    
+    // Process all execution reports to build/update order state
+    executionReports.forEach(execReport => {
+      const betOrderId = execReport.betOrderId;
+      if (!betOrderId) return;
+      
+      const existingOrder = ordersMap.get(betOrderId);
+      
+      // Create or update order based on execution report
+      const order = {
+        betOrderId,
+        symbol: execReport.symbol || execReport.instrument?.symbol,
+        side: execReport.side,
+        ordStatus: execReport.ordStatus,
+        ordType: execReport.ordType || execReport.newOrder?.orderType,
+        timeInForce: execReport.timeInForce || execReport.newOrder?.timeInForce,
+        price: execReport.price || execReport.newOrder?.price,
+        orderQty: execReport.orderQty || execReport.newOrder?.quantity,
+        cumQty: execReport.cumQty || 0,
+        leavesQty: execReport.leavesQty || execReport.orderQty || 0,
+        avgPx: execReport.avgPx,
+        clOrdID: execReport.clOrdID,
+        orderID: execReport.orderID,
+        transactTime: execReport.transactTime || execReport.timestamp,
+        lastUpdateTime: execReport.timestamp || Date.now(),
+        text: execReport.text,
+        ordRejReason: execReport.ordRejReason,
+        executions: [...(existingOrder?.executions || []), execReport]
+      };
+      
+      ordersMap.set(betOrderId, order);
+    });
+    
+    setOrders(ordersMap);
+  }, [executionReports]);
 
-    // Send subscription for order updates on this market
-    const subscription = {
-      id: Date.now(),
-      cmd: 'subscribe',
-      params: {
-        channels: ['orders'],
-        market_tickers: [selectedMarket]
+  // Handle WebSocket order updates from temp-orders
+  useEffect(() => {
+    if (!connections.tempOrders) return;
+    
+    const handleMessage = (message) => {
+      if (message.type === 'ORDER_UPDATE' && message.data) {
+        const execReportLike = orderUpdateToExecutionReport(message.data);
+        const betOrderId = message.data.betOrderId;
+        
+        setOrders(prev => {
+          const newOrders = new Map(prev);
+          const existingOrder = newOrders.get(betOrderId) || {};
+          
+          // Update order with new information
+          const updatedOrder = {
+            ...existingOrder,
+            betOrderId,
+            symbol: message.data.order.symbol,
+            side: message.data.order.side,
+            ordStatus: execReportLike.ordStatus,
+            ordType: message.data.order.orderType,
+            timeInForce: message.data.order.timeInForce,
+            price: message.data.order.price ? parseFloat(message.data.order.price) : undefined,
+            orderQty: parseFloat(message.data.order.quantity),
+            clOrdID: message.data.order.clOrdId,
+            orderID: message.data.order.orderId,
+            lastUpdateTime: Date.now(),
+            event: message.data.event
+          };
+          
+          newOrders.set(betOrderId, updatedOrder);
+          return newOrders;
+        });
       }
     };
-
-    connections.mockServer.sendMessage(subscription);
-
-    // Generate some mock orders for demo purposes
-    generateMockOrders(selectedMarket);
-
-    // Add message handler for this market
-    const handleMessage = (message) => {
-      handleOrderUpdate(message);
-    };
-
-    // Note: In a real implementation, you'd set up the WebSocket message handler here
-    // For now, we'll rely on the existing connection's message handling
-
-    return () => {
-      // Cleanup subscription if needed
-    };
-  }, [selectedMarket, connections.mockServer.isConnected, handleOrderUpdate]);
-
-  // Generate mock orders for demo
-  const generateMockOrders = (market) => {
-    const mockOrders = [];
-    const statuses = ['open', 'filled', 'partially_filled', 'canceled'];
-    const sides = ['yes', 'no'];
-    const actions = ['buy', 'sell'];
     
-    for (let i = 0; i < 10; i++) {
-      const originalQty = 10 + Math.floor(Math.random() * 90);
-      const filledQty = Math.floor(Math.random() * originalQty);
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-      
-      mockOrders.push({
-        order_id: `order_${Date.now()}_${i}`,
-        user_id: `user_${Math.floor(Math.random() * 1000)}`,
-        market_ticker: market,
-        side: sides[Math.floor(Math.random() * sides.length)],
-        action: actions[Math.floor(Math.random() * actions.length)],
-        type: 'limit',
-        original_quantity: originalQty,
-        filled_quantity: status === 'filled' ? originalQty : filledQty,
-        remaining_quantity: originalQty - filledQty,
-        price: 45 + Math.floor(Math.random() * 10),
-        avg_fill_price: filledQty > 0 ? 45 + Math.floor(Math.random() * 10) : null,
-        status: status,
-        time_in_force: 'GTC',
-        created_time: new Date(Date.now() - Math.random() * 3600000).toISOString(),
-        updated_time: new Date().toISOString(),
-        update_type: 'EXISTING'
-      });
+    // Note: In real implementation, add message handler to connection
+    // For now, this is handled by the useWebSocketConnections hook
+    
+  }, [connections.tempOrders]);
+
+  // Filter orders based on selected market
+  useEffect(() => {
+    const allOrders = Array.from(orders.values());
+    
+    if (selectedMarket) {
+      setFilteredOrders(
+        allOrders
+          .filter(order => order.symbol === selectedMarket)
+          .sort((a, b) => b.lastUpdateTime - a.lastUpdateTime)
+          .slice(0, 1000) // Limit to 1000 most recent
+      );
+    } else {
+      // Show all orders if no market selected, limited to 1000
+      setFilteredOrders(
+        allOrders
+          .sort((a, b) => b.lastUpdateTime - a.lastUpdateTime)
+          .slice(0, 1000)
+      );
     }
-    
-    setRowData(mockOrders);
-  };
+  }, [orders, selectedMarket]);
 
   // Calculate order statistics
   useEffect(() => {
-    const stats = rowData.reduce((acc, order) => {
+    const stats = filteredOrders.reduce((acc, order) => {
       acc.total++;
-      acc[order.status] = (acc[order.status] || 0) + 1;
+      switch (order.ordStatus) {
+        case 'NEW':
+        case 'PENDING_NEW':
+          acc.new++;
+          break;
+        case 'FILLED':
+          acc.filled++;
+          break;
+        case 'PARTIALLY_FILLED':
+          acc.partiallyFilled++;
+          break;
+        case 'CANCELED':
+        case 'PENDING_CANCEL':
+          acc.canceled++;
+          break;
+        case 'REJECTED':
+          acc.rejected++;
+          break;
+      }
       return acc;
-    }, { total: 0, open: 0, filled: 0, canceled: 0, partially_filled: 0 });
+    }, { total: 0, new: 0, filled: 0, partiallyFilled: 0, canceled: 0, rejected: 0 });
     
     setOrderStats(stats);
-  }, [rowData]);
+  }, [filteredOrders]);
 
   const onGridReady = useCallback((params) => {
-    // Grid is ready
+    // Auto-size columns to fit content
+    params.api.sizeColumnsToFit();
   }, []);
 
   const onRowClicked = useCallback((event) => {
@@ -268,34 +318,39 @@ export const OrdersPanel = ({
     }
   }, [onOrderSelect]);
 
-  if (!selectedMarket) {
-    return (
-      <div className="orders-panel">
-        <div className="orders-header">
-          <h3>Orders</h3>
-        </div>
-        <div className="no-market-selected">
-          <p>Select a market to view orders</p>
-        </div>
-      </div>
-    );
-  }
+  // Flash cells when order updates
+  useEffect(() => {
+    if (gridRef.current?.api && filteredOrders.length > 0) {
+      const lastOrder = filteredOrders[0];
+      const rowNode = gridRef.current.api.getRowNode(lastOrder.betOrderId);
+      if (rowNode) {
+        gridRef.current.api.flashCells({
+          rowNodes: [rowNode],
+          flashDelay: 300,
+          fadeDelay: 1000
+        });
+      }
+    }
+  }, [filteredOrders]);
 
   return (
     <div className="orders-panel">
       <div className="orders-header">
-        <h3>Orders - {selectedMarket}</h3>
+        <h3>Orders {selectedMarket ? `- ${selectedMarket}` : '(All Markets)'}</h3>
         <div className="orders-stats">
           <span className="stat-item">Total: {orderStats.total}</span>
-          <span className="stat-item open">Open: {orderStats.open || 0}</span>
-          <span className="stat-item filled">Filled: {orderStats.filled || 0}</span>
-          <span className="stat-item canceled">Canceled: {orderStats.canceled || 0}</span>
-          {orderStats.partially_filled > 0 && (
-            <span className="stat-item partial">Partial: {orderStats.partially_filled}</span>
+          <span className="stat-item new">New: {orderStats.new}</span>
+          <span className="stat-item filled">Filled: {orderStats.filled}</span>
+          {orderStats.partiallyFilled > 0 && (
+            <span className="stat-item partial">Partial: {orderStats.partiallyFilled}</span>
+          )}
+          <span className="stat-item canceled">Canceled: {orderStats.canceled}</span>
+          {orderStats.rejected > 0 && (
+            <span className="stat-item rejected">Rejected: {orderStats.rejected}</span>
           )}
         </div>
         <div className="connection-status">
-          {connections.mockServer.isConnected ? (
+          {connections.tempOrders?.isConnected ? (
             <span className="connected">🟢 Live</span>
           ) : (
             <span className="disconnected">🔴 Disconnected</span>
@@ -303,22 +358,27 @@ export const OrdersPanel = ({
         </div>
       </div>
       
-      <div className="orders-grid-container ag-theme-alpine">
+      <div className="orders-grid-container ag-theme-alpine-dark">
         <AgGridReact
           ref={gridRef}
-          rowData={rowData}
+          rowData={filteredOrders}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           onGridReady={onGridReady}
           onRowClicked={onRowClicked}
           animateRows={true}
           rowSelection="single"
-          getRowId={(params) => params.data.order_id}
+          getRowId={(params) => params.data.betOrderId}
           enableCellTextSelection={true}
           ensureDomOrder={true}
           suppressRowClickSelection={false}
-          rowHeight={32}
-          headerHeight={36}
+          rowHeight={36}
+          headerHeight={40}
+          floatingFiltersHeight={40}
+          pagination={true}
+          paginationPageSize={50}
+          paginationPageSizeSelector={[50, 100, 200, 500]}
+          enableCellChangeFlash={true}
         />
       </div>
     </div>

@@ -1,6 +1,6 @@
 .orders-panel {
-  background: white;
-  border: 1px solid #dee2e6;
+  background: #1a1a1a;
+  border: 1px solid #333;
   border-radius: 8px;
   overflow: hidden;
   height: 100%;
@@ -13,8 +13,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #dee2e6;
+  background: #252525;
+  border-bottom: 1px solid #333;
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -23,7 +23,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #495057;
+  color: #00ff00;
 }
 
 .orders-stats {
@@ -37,28 +37,33 @@
   font-weight: 500;
   padding: 4px 8px;
   border-radius: 4px;
-  background: #e9ecef;
-  color: #495057;
+  background: #2a2a2a;
+  color: #aaa;
 }
 
-.stat-item.open {
-  background: #d1ecf1;
-  color: #0c5460;
+.stat-item.new {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
 }
 
 .stat-item.filled {
-  background: #d4edda;
-  color: #155724;
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196F3;
 }
 
 .stat-item.partial {
-  background: #fff3cd;
-  color: #856404;
+  background: rgba(255, 152, 0, 0.2);
+  color: #FF9800;
 }
 
 .stat-item.canceled {
-  background: #f8d7da;
-  color: #721c24;
+  background: rgba(158, 158, 158, 0.2);
+  color: #9E9E9E;
+}
+
+.stat-item.rejected {
+  background: rgba(244, 67, 54, 0.2);
+  color: #F44336;
 }
 
 .connection-status {
@@ -67,11 +72,11 @@
 }
 
 .connection-status .connected {
-  color: #28a745;
+  color: #4CAF50;
 }
 
 .connection-status .disconnected {
-  color: #dc3545;
+  color: #F44336;
 }
 
 .orders-grid-container {
@@ -84,108 +89,123 @@
   align-items: center;
   justify-content: center;
   height: 200px;
-  color: #6c757d;
+  color: #666;
   font-style: italic;
 }
 
-/* AG Grid custom styling */
-.ag-theme-alpine {
-  --ag-header-background-color: #f8f9fa;
-  --ag-header-foreground-color: #495057;
-  --ag-border-color: #dee2e6;
-  --ag-row-hover-color: #f8f9fa;
-  --ag-selected-row-background-color: #e3f2fd;
+/* AG Grid dark theme overrides */
+.ag-theme-alpine-dark {
+  --ag-header-background-color: #252525;
+  --ag-header-foreground-color: #fff;
+  --ag-border-color: #333;
+  --ag-row-hover-color: #2a2a2a;
+  --ag-selected-row-background-color: #3a3a3a;
   --ag-header-cell-font-weight: 600;
   --ag-font-size: 13px;
+  --ag-background-color: #1a1a1a;
+  --ag-foreground-color: #fff;
+  --ag-odd-row-background-color: #1f1f1f;
 }
 
 /* Custom cell styling */
 .market-cell {
   font-weight: 500;
-  color: #007bff;
+  color: #00ff00;
 }
 
-.side-yes {
-  color: #28a745;
+.buy-side {
+  color: #4CAF50;
   font-weight: 600;
 }
 
-.side-no {
-  color: #dc3545;
+.sell-side {
+  color: #F44336;
   font-weight: 600;
 }
 
-.action-buy {
-  color: #28a745;
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.action-sell {
-  color: #dc3545;
+.status-icon {
+  font-size: 12px;
 }
 
-.status-open {
-  color: #17a2b8;
-  background: #e8f4f5;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.status-filled {
-  color: #28a745;
-  background: #e8f5e8;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.status-partially-filled {
-  color: #856404;
-  background: #fff3cd;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.status-canceled {
-  color: #721c24;
-  background: #f8d7da;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.price-cell {
-  font-family: 'Courier New', monospace;
-  text-align: right;
+.status-label {
+  font-size: 12px;
   font-weight: 500;
 }
 
-.qty-cell {
-  font-family: 'Courier New', monospace;
+.price-cell {
+  font-family: 'Monaco', 'Consolas', monospace;
   text-align: right;
+  font-weight: 500;
+  color: #ffeb3b;
+}
+
+.qty-cell {
+  font-family: 'Monaco', 'Consolas', monospace;
+  text-align: right;
+  color: #fff;
 }
 
 .qty-none {
-  color: #6c757d;
+  color: #666;
 }
 
 .qty-partial {
-  background: #fff3cd;
-  color: #856404;
-  border-radius: 4px;
-  padding: 2px 4px;
+  color: #FF9800;
 }
 
 .qty-full {
-  color: #28a745;
+  color: #4CAF50;
   font-weight: 500;
 }
 
 /* Flash animation for updates */
-.ag-cell-flash {
-  background-color: #d1ecf1 !important;
+.ag-theme-alpine-dark .ag-cell-flash {
+  background-color: rgba(0, 255, 0, 0.2) !important;
   transition: background-color 0.5s ease-out;
+}
+
+/* Custom scrollbar */
+.orders-grid-container ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.orders-grid-container ::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.orders-grid-container ::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.orders-grid-container ::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Floating filter style */
+.ag-theme-alpine-dark .ag-floating-filter {
+  background-color: #1f1f1f;
+  border-top: 1px solid #333;
+}
+
+.ag-theme-alpine-dark .ag-floating-filter-input {
+  background-color: #2a2a2a;
+  color: #fff;
+  border: 1px solid #444;
+}
+
+/* Pagination styling */
+.ag-theme-alpine-dark .ag-paging-panel {
+  background-color: #252525;
+  border-top: 1px solid #333;
+  color: #fff;
 }
 
 /* Responsive adjustments */

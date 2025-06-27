@@ -93,8 +93,8 @@ public class OrderBookController {
         
         return OrderBookSnapshot.builder()
             .marketTicker(orderBook.getMarketTicker())
-            .bestBid(orderBook.getBestYesLevel().orElse(null))  // Yes side is the bid equivalent
-            .bestAsk(orderBook.getBestNoLevel().orElse(null))   // No side is the ask equivalent
+            .bestBid(orderBook.getBestYesLevel())  // Yes side is the bid equivalent
+            .bestAsk(orderBook.getBestNoLevel())   // No side is the ask equivalent
             .bids(yesSideLevels)
             .asks(noSideLevels)
             .lastUpdateTimestamp(orderBook.getLastUpdateTimestamp())

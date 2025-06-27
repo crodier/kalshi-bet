@@ -25,7 +25,7 @@ public class OrderBookManager {
             log.info("Creating new order book for market: {}", k);
             marketTrie.addMarket(k);
             // Create an empty InternalOrderBook using the builder
-            return new com.fbg.api.kalshi.InternalOrderBookBuilder(k)
+            return new com.fbg.api.kalshi.InternalOrderBookBuilder(k, System.currentTimeMillis())
                 .build();
         });
     }
