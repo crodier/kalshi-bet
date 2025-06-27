@@ -181,8 +181,10 @@ public class PersistenceService {
     }
     
     public List<Map<String, Object>> getOpenOrdersForMarket(String marketTicker) {
-        String sql = "SELECT *, action FROM orders WHERE market_ticker = ? AND status = 'open' ORDER BY created_time ASC";
-        return jdbcTemplate.queryForList(sql, marketTicker);
+        // Only load orders from the last two days and exclude canceled orders
+        long twoDaysAgo = System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L);
+        String sql = "SELECT *, action FROM orders WHERE market_ticker = ? AND status = 'open' AND status != 'canceled' AND created_time >= ? ORDER BY created_time ASC";
+        return jdbcTemplate.queryForList(sql, marketTicker, twoDaysAgo);
     }
     
     @Transactional
@@ -199,6 +201,36 @@ public class PersistenceService {
         
         jdbcTemplate.update(sql, status, filledQuantity, remainingQuantity, avgFillPrice, 
                            System.currentTimeMillis(), orderId);
+    }
+    
+    /**
+     * Clean up old orders at startup - cancel orders older than 2 days
+     */
+    @Transactional
+    public void cleanupOldOrders() {
+        long twoDaysAgo = System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L);
+        
+        // First, find old open orders
+        String findSql = "SELECT COUNT(*) FROM orders WHERE status = 'open' AND created_time < ?";
+        int oldOrderCount = jdbcTemplate.queryForObject(findSql, Integer.class, twoDaysAgo);
+        
+        if (oldOrderCount > 0) {
+            System.out.println("Found " + oldOrderCount + " old open orders to clean up (older than 2 days)");
+            
+            // Cancel old open orders
+            String updateSql = """
+                UPDATE orders SET 
+                    status = 'canceled', 
+                    remaining_quantity = 0,
+                    updated_time = ?
+                WHERE status = 'open' AND created_time < ?
+            """;
+            
+            int updatedCount = jdbcTemplate.update(updateSql, System.currentTimeMillis(), twoDaysAgo);
+            System.out.println("Canceled " + updatedCount + " old orders during startup cleanup");
+        } else {
+            System.out.println("No old orders found during startup cleanup");
+        }
     }
     
     // Fill operations

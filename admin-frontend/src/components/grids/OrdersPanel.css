@@ -1,0 +1,206 @@
+.orders-panel {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.orders-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.orders-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.orders-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #e9ecef;
+  color: #495057;
+}
+
+.stat-item.open {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.stat-item.filled {
+  background: #d4edda;
+  color: #155724;
+}
+
+.stat-item.partial {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.stat-item.canceled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.connection-status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.connection-status .connected {
+  color: #28a745;
+}
+
+.connection-status .disconnected {
+  color: #dc3545;
+}
+
+.orders-grid-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.no-market-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* AG Grid custom styling */
+.ag-theme-alpine {
+  --ag-header-background-color: #f8f9fa;
+  --ag-header-foreground-color: #495057;
+  --ag-border-color: #dee2e6;
+  --ag-row-hover-color: #f8f9fa;
+  --ag-selected-row-background-color: #e3f2fd;
+  --ag-header-cell-font-weight: 600;
+  --ag-font-size: 13px;
+}
+
+/* Custom cell styling */
+.market-cell {
+  font-weight: 500;
+  color: #007bff;
+}
+
+.side-yes {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.side-no {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.action-buy {
+  color: #28a745;
+}
+
+.action-sell {
+  color: #dc3545;
+}
+
+.status-open {
+  color: #17a2b8;
+  background: #e8f4f5;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.status-filled {
+  color: #28a745;
+  background: #e8f5e8;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.status-partially-filled {
+  color: #856404;
+  background: #fff3cd;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.status-canceled {
+  color: #721c24;
+  background: #f8d7da;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.price-cell {
+  font-family: 'Courier New', monospace;
+  text-align: right;
+  font-weight: 500;
+}
+
+.qty-cell {
+  font-family: 'Courier New', monospace;
+  text-align: right;
+}
+
+.qty-none {
+  color: #6c757d;
+}
+
+.qty-partial {
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.qty-full {
+  color: #28a745;
+  font-weight: 500;
+}
+
+/* Flash animation for updates */
+.ag-cell-flash {
+  background-color: #d1ecf1 !important;
+  transition: background-color 0.5s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .orders-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .orders-stats {
+    order: 2;
+  }
+  
+  .connection-status {
+    order: 3;
+    align-self: flex-end;
+  }
+}

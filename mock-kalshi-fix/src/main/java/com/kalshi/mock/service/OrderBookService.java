@@ -50,6 +50,12 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
         orderBook.addListener(this);
         orderBooks.put(marketTicker, orderBook);
         
+        // Clean up old orders first (only on first market creation)
+        if (orderBooks.size() == 1) {
+            System.out.println("First market being created, cleaning up old orders...");
+            persistenceService.cleanupOldOrders();
+        }
+        
         // Load existing open orders from database
         loadOpenOrdersForMarket(marketTicker);
     }
@@ -62,23 +68,39 @@ public class OrderBookService implements ConcurrentOrderBook.OrderBookListener {
             orderBook = new ConcurrentOrderBook(marketTicker);
         }
         
-        // Fetch all open orders for this market
+        // Clean up old orders before loading (this excludes canceled orders and old orders automatically)
+        long twoDaysAgo = System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L);
+        System.out.println("Loading orders for " + marketTicker + " from the last 2 days (since " + new java.util.Date(twoDaysAgo) + ")");
+        
+        // Fetch all open orders for this market (PersistenceService now filters by date and excludes canceled)
         List<Map<String, Object>> openOrders = persistenceService.getOpenOrdersForMarket(marketTicker);
+        System.out.println("Found " + openOrders.size() + " recent open orders for market " + marketTicker);
         
         // Add each order to the order book
         for (Map<String, Object> orderData : openOrders) {
-            OrderBookEntry bookEntry = new OrderBookEntry(
-                (String) orderData.get("order_id"),
-                (String) orderData.get("user_id"),
-                KalshiSide.valueOf((String) orderData.get("side")),
-                (String) orderData.get("action"), // Get action directly from DB
-                (Integer) orderData.get("price"),
-                (Integer) orderData.get("remaining_quantity"),
-                (Long) orderData.get("created_time")
-            );
+            Long createdTime = (Long) orderData.get("created_time");
+            String orderId = (String) orderData.get("order_id");
             
-            // Add to order book without matching (since these are existing orders)
-            orderBook.addOrder(bookEntry);
+            // Double-check that order is recent (safety check)
+            if (createdTime != null && createdTime >= twoDaysAgo) {
+                OrderBookEntry bookEntry = new OrderBookEntry(
+                    orderId,
+                    (String) orderData.get("user_id"),
+                    KalshiSide.valueOf((String) orderData.get("side")),
+                    (String) orderData.get("action"), // Get action directly from DB
+                    (Integer) orderData.get("price"),
+                    (Integer) orderData.get("remaining_quantity"),
+                    createdTime
+                );
+                
+                // Add to order book without matching (since these are existing orders)
+                orderBook.addOrder(bookEntry);
+                System.out.println("Loaded order " + orderId + " created " + 
+                                  ((System.currentTimeMillis() - createdTime) / (60 * 1000)) + " minutes ago");
+            } else {
+                System.out.println("Skipping old order " + orderId + " created " + 
+                                  (createdTime != null ? new java.util.Date(createdTime) : "unknown time"));
+            }
         }
         
         // Publish initial snapshot after loading orders
